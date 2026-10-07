@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  fullName     String
+  email        String     @unique
+  phoneNumber  String?    @unique
+  passwordHash String
+  role         String     @default("WORKER")
+  status       String     @default("PENDING")
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  createdTransactions InventoryTransaction[] @relation("CreatedByUser")
+  workerTransactions  InventoryTransaction[] @relation("WorkerUser")
+}
+
+model Item {
+  id           String        @id @default(uuid())
+  name         String        @unique
+  category     String
+  unit         String        @default("NOS")
+  minThreshold Float?        @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  balances     StockBalance[]
+  transactions InventoryTransaction[]
+}
+
+model StockBalance {
+  id         String   @id @default(uuid())
+  itemId     String
+  location   String
+  quantity   Float    @default(0)
+  updatedAt  DateTime @updatedAt
+
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, location])
+}
+
+model InventoryTransaction {
+  id              String          @id @default(uuid())
+  transactionType String
+  itemId          String
+  quantity        Float
+  fromLocation    String?
+  toLocation      String?
+  
+  createdByUserId String
+  workerId        String?
+  
+  siteOrCustomer  String?
+  referenceDocNo  String?
+  remarks         String?
+  transactionDate DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+
+  item            Item            @relation(fields: [itemId], references: [id])
+  createdByUser   User            @relation("CreatedByUser", fields: [createdByUserId], references: [id])
+  worker          User?           @relation("WorkerUser", fields: [workerId], references: [id])
+}
