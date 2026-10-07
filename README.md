@@ -25,19 +25,6 @@ A production-ready, mobile-first inventory management web application for solar 
 
 ---
 
-## 👥 Demo Logins (1-Tap Switcher on Login Page)
-
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **Super Admin** | `admin@zaffine.com` | `admin123` |
-| **Operations Manager** | `ops@zaffine.com` | `zaffine123` |
-| **Godown Manager** | `godown@zaffine.com` | `zaffine123` |
-| **Office Manager** | `office@zaffine.com` | `zaffine123` |
-| **Technician / Worker** | `worker@zaffine.com` | `zaffine123` |
-| **Pending Sign-up** | `pending@zaffine.com` | `zaffine123` |
-
----
-
 ## 📦 Features Overview
 
 - **Mobile-First UX**: Sticky bottom navigation (min 44px targets), mobile summary cards with expandable accordions, and rapid numeric keypad steppers with quick increment chips (`+1`, `+5`, `+10`, `+50`, `+100`).
