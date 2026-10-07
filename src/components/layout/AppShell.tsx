@@ -27,7 +27,10 @@ export function AppShell({ user, children }: AppShellProps) {
   return (
     <div className="flex min-h-screen bg-slate-50/60 font-sans text-slate-900">
       {/* Desktop Sidebar */}
-      <AppSidebar user={user} />
+      <AppSidebar
+        user={user}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -148,7 +151,10 @@ export function AppShell({ user, children }: AppShellProps) {
       </div>
 
       {/* Sticky Bottom Navigation for Mobile Devices */}
-      <BottomNav user={user} />
+      <BottomNav
+        user={user}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+      />
 
       <ChangePasswordModal
         isOpen={isChangePasswordOpen}

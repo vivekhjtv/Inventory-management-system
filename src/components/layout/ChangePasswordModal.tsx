@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Lock, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle, X, ShieldCheck } from "lucide-react";
 import { changePasswordAction } from "@/actions/auth";
 
@@ -11,6 +12,7 @@ interface ChangePasswordModalProps {
 }
 
 export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswordModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,7 +23,13 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted || typeof document === "undefined" || !document.body) {
+    return null;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,15 +78,15 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div
-        className="fixed inset-0"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm"
         onClick={handleClose}
       />
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 animate-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200/90 overflow-hidden z-[10000] animate-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-500/5 to-slate-50">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-gradient-to-r from-amber-500/10 via-amber-50/50 to-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-md shadow-amber-500/20">
               <KeyRound className="w-5 h-5" />
@@ -221,6 +229,7 @@ export function ChangePasswordModal({ isOpen, onClose, userEmail }: ChangePasswo
           </form>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

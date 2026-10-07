@@ -25,12 +25,12 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 
 interface BottomNavProps {
   user: SessionUser;
+  onOpenChangePassword?: () => void;
 }
 
-export function BottomNav({ user }: BottomNavProps) {
+export function BottomNav({ user, onOpenChangePassword }: BottomNavProps) {
   const pathname = usePathname();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const perms = getRolePermissions(user.role, user.status);
 
   const mainNavItems = [
@@ -147,7 +147,7 @@ export function BottomNav({ user }: BottomNavProps) {
                 type="button"
                 onClick={() => {
                   setIsMoreOpen(false);
-                  setIsChangePasswordOpen(true);
+                  onOpenChangePassword?.();
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors touch-target"
               >
@@ -216,12 +216,6 @@ export function BottomNav({ user }: BottomNavProps) {
           </button>
         </div>
       </nav>
-
-      <ChangePasswordModal
-        isOpen={isChangePasswordOpen}
-        onClose={() => setIsChangePasswordOpen(false)}
-        userEmail={user.email}
-      />
     </>
   );
 }

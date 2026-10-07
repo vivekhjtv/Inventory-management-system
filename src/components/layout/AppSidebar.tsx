@@ -25,6 +25,7 @@ import { ChangePasswordModal } from "./ChangePasswordModal";
 
 interface AppSidebarProps {
   user: SessionUser;
+  onOpenChangePassword?: () => void;
 }
 
 interface SidebarNavItem {
@@ -42,9 +43,8 @@ interface SidebarNavGroup {
   items: SidebarNavItem[];
 }
 
-export function AppSidebar({ user }: AppSidebarProps) {
+export function AppSidebar({ user, onOpenChangePassword }: AppSidebarProps) {
   const pathname = usePathname();
-  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const perms = getRolePermissions(user.role, user.status);
   const roleInfo = ROLE_DETAILS[user.role] || {
     label: user.role,
@@ -258,7 +258,7 @@ export function AppSidebar({ user }: AppSidebarProps) {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => setIsChangePasswordOpen(true)}
+              onClick={onOpenChangePassword}
               title="Change Password"
               className="p-2 text-slate-400 hover:text-amber-600 rounded-xl hover:bg-amber-50 transition-colors"
             >
@@ -276,12 +276,6 @@ export function AppSidebar({ user }: AppSidebarProps) {
           </div>
         </div>
       </div>
-
-      <ChangePasswordModal
-        isOpen={isChangePasswordOpen}
-        onClose={() => setIsChangePasswordOpen(false)}
-        userEmail={user.email}
-      />
     </aside>
   );
 }
