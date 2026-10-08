@@ -478,3 +478,347 @@ export async function getWorkersList() {
     },
   });
 }
+
+export async function batchInwardStock(payload: {
+  items: Array<{ itemId: string; quantity: number }>;
+  vendorName?: string;
+  docNo?: string;
+  remarks?: string;
+}) {
+  const user = await getVerifiedUser();
+  if (!user) return { success: false, error: "Authentication required." };
+
+  const perms = getRolePermissions(user.role, user.status);
+  if (!perms.canInwardToGodown) {
+    return {
+      success: false,
+      error: `Your role (${user.role}) is not authorized to perform Vendor Inward into Godown.`,
+    };
+  }
+
+  const { items, vendorName, docNo, remarks } = payload;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: false, error: "Please add at least one item to inward." };
+  }
+
+  for (const item of items) {
+    const qty = Number(item.quantity);
+    if (!item.itemId || isNaN(qty) || qty <= 0) {
+      return { success: false, error: "All items must have a valid quantity greater than 0." };
+    }
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const fullRemarks = [
+        vendorName ? `Vendor: ${vendorName}` : null,
+        remarks ? remarks : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      const processedItems = [];
+
+      for (const entry of items) {
+        const numQty = Number(entry.quantity);
+
+        const balance = await tx.stockBalance.upsert({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "GODOWN",
+            },
+          },
+          update: {
+            quantity: { increment: numQty },
+          },
+          create: {
+            itemId: entry.itemId,
+            location: "GODOWN",
+            quantity: numQty,
+          },
+        });
+
+        const transaction = await tx.inventoryTransaction.create({
+          data: {
+            transactionType: "INWARD_TO_GODOWN",
+            itemId: entry.itemId,
+            quantity: numQty,
+            fromLocation: vendorName || "VENDOR",
+            toLocation: "GODOWN",
+            createdByUserId: user.id,
+            referenceDocNo: docNo || null,
+            remarks: fullRemarks || null,
+          },
+          include: {
+            item: true,
+          },
+        });
+
+        processedItems.push({
+          itemId: entry.itemId,
+          itemName: transaction.item.name,
+          quantity: numQty,
+          unit: transaction.item.unit,
+          newBalance: balance.quantity,
+        });
+      }
+
+      return processedItems;
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/inward");
+    revalidatePath("/transactions");
+
+    return {
+      success: true,
+      message: `Successfully received ${result.length} item${result.length > 1 ? "s" : ""} into Godown.`,
+      processedItems: result,
+    };
+  } catch (error: any) {
+    console.error("Batch inward error:", error);
+    return { success: false, error: error.message || "Failed to process batch inward." };
+  }
+}
+
+export async function batchTransferStock(payload: {
+  items: Array<{ itemId: string; quantity: number }>;
+  docNo?: string;
+  remarks?: string;
+}) {
+  const user = await getVerifiedUser();
+  if (!user) return { success: false, error: "Authentication required." };
+
+  const perms = getRolePermissions(user.role, user.status);
+  if (!perms.canTransferToOffice) {
+    return {
+      success: false,
+      error: `Your role (${user.role}) is not authorized to transfer warehouse stock to office.`,
+    };
+  }
+
+  const { items, docNo, remarks } = payload;
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: false, error: "Please add at least one item to transfer." };
+  }
+
+  for (const item of items) {
+    const qty = Number(item.quantity);
+    if (!item.itemId || isNaN(qty) || qty <= 0) {
+      return { success: false, error: "All items must have a valid quantity greater than 0." };
+    }
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const processedItems = [];
+
+      for (const entry of items) {
+        const numQty = Number(entry.quantity);
+
+        const godownBalance = await tx.stockBalance.findUnique({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "GODOWN",
+            },
+          },
+          include: { item: true },
+        });
+
+        const currentGodownQty = godownBalance?.quantity ?? 0;
+        if (currentGodownQty < numQty) {
+          throw new Error(
+            `Insufficient Godown stock for ${godownBalance?.item?.name || "Item"}. Available: ${currentGodownQty}, Requested: ${numQty}`
+          );
+        }
+
+        const updatedGodown = await tx.stockBalance.update({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "GODOWN",
+            },
+          },
+          data: {
+            quantity: { decrement: numQty },
+          },
+        });
+
+        const updatedOffice = await tx.stockBalance.upsert({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "OFFICE",
+            },
+          },
+          update: {
+            quantity: { increment: numQty },
+          },
+          create: {
+            itemId: entry.itemId,
+            location: "OFFICE",
+            quantity: numQty,
+          },
+        });
+
+        const transaction = await tx.inventoryTransaction.create({
+          data: {
+            transactionType: "TRANSFER_TO_OFFICE",
+            itemId: entry.itemId,
+            quantity: numQty,
+            fromLocation: "GODOWN",
+            toLocation: "OFFICE",
+            createdByUserId: user.id,
+            referenceDocNo: docNo || null,
+            remarks: remarks || null,
+          },
+          include: {
+            item: true,
+          },
+        });
+
+        processedItems.push({
+          itemId: entry.itemId,
+          itemName: transaction.item.name,
+          quantity: numQty,
+          unit: transaction.item.unit,
+          newGodownBalance: updatedGodown.quantity,
+          newOfficeBalance: updatedOffice.quantity,
+        });
+      }
+
+      return processedItems;
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/transfer");
+    revalidatePath("/transactions");
+
+    return {
+      success: true,
+      message: `Successfully transferred ${result.length} item${result.length > 1 ? "s" : ""} to Office hub.`,
+      processedItems: result,
+    };
+  } catch (error: any) {
+    console.error("Batch transfer error:", error);
+    return { success: false, error: error.message || "Failed to process batch transfer." };
+  }
+}
+
+export async function batchDispatchToSite(payload: {
+  items: Array<{ itemId: string; quantity: number }>;
+  siteOrCustomer: string;
+  workerId?: string;
+  docNo?: string;
+  remarks?: string;
+}) {
+  const user = await getVerifiedUser();
+  if (!user) return { success: false, error: "Authentication required." };
+
+  const perms = getRolePermissions(user.role, user.status);
+  if (!perms.canDispatchToSite) {
+    return {
+      success: false,
+      error: `Your role (${user.role}) is not authorized to dispatch stock to installation sites.`,
+    };
+  }
+
+  const { items, siteOrCustomer, workerId, docNo, remarks } = payload;
+  if (!siteOrCustomer?.trim()) {
+    return { success: false, error: "Site or Customer reference is required." };
+  }
+
+  if (!items || !Array.isArray(items) || items.length === 0) {
+    return { success: false, error: "Please add at least one item to dispatch." };
+  }
+
+  for (const item of items) {
+    const qty = Number(item.quantity);
+    if (!item.itemId || isNaN(qty) || qty <= 0) {
+      return { success: false, error: "All items must have a valid quantity greater than 0." };
+    }
+  }
+
+  try {
+    const result = await prisma.$transaction(async (tx) => {
+      const processedItems = [];
+
+      for (const entry of items) {
+        const numQty = Number(entry.quantity);
+
+        const officeBalance = await tx.stockBalance.findUnique({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "OFFICE",
+            },
+          },
+          include: { item: true },
+        });
+
+        const currentOfficeQty = officeBalance?.quantity ?? 0;
+        if (currentOfficeQty < numQty) {
+          throw new Error(
+            `Insufficient Office stock for ${officeBalance?.item?.name || "Item"}. Available: ${currentOfficeQty}, Requested: ${numQty}`
+          );
+        }
+
+        const updatedOffice = await tx.stockBalance.update({
+          where: {
+            itemId_location: {
+              itemId: entry.itemId,
+              location: "OFFICE",
+            },
+          },
+          data: {
+            quantity: { decrement: numQty },
+          },
+        });
+
+        const transaction = await tx.inventoryTransaction.create({
+          data: {
+            transactionType: "DISPATCH_TO_SITE",
+            itemId: entry.itemId,
+            quantity: numQty,
+            fromLocation: "OFFICE",
+            toLocation: "SITE",
+            siteOrCustomer: siteOrCustomer.trim(),
+            workerId: workerId || user.id,
+            createdByUserId: user.id,
+            referenceDocNo: docNo || null,
+            remarks: remarks || null,
+          },
+          include: {
+            item: true,
+          },
+        });
+
+        processedItems.push({
+          itemId: entry.itemId,
+          itemName: transaction.item.name,
+          quantity: numQty,
+          unit: transaction.item.unit,
+          newOfficeBalance: updatedOffice.quantity,
+        });
+      }
+
+      return processedItems;
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dispatch");
+    revalidatePath("/transactions");
+
+    return {
+      success: true,
+      message: `Successfully dispatched ${result.length} item${result.length > 1 ? "s" : ""} for "${siteOrCustomer.trim()}".`,
+      processedItems: result,
+    };
+  } catch (error: any) {
+    console.error("Batch dispatch error:", error);
+    return { success: false, error: error.message || "Failed to process batch dispatch." };
+  }
+}
+
