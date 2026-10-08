@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "Zaffine Solar | Stock & Inventory Management System",
   description:
     "Mobile-first solar stock tracking across Godown Warehouse, Office Hub staging, and Customer Installation sites.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {
