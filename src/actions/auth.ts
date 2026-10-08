@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { setSessionCookie, removeSessionCookie, getCurrentUser } from "@/lib/auth";
+import { setSessionCookie, removeSessionCookie, getCurrentUser, getVerifiedUser } from "@/lib/auth";
 import { Role, UserStatus } from "@/lib/types";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -153,7 +153,7 @@ export async function changePasswordAction(formData: FormData) {
   const newPassword = formData.get("newPassword") as string;
   const confirmPassword = formData.get("confirmPassword") as string;
 
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) {
     return { success: false, error: "You must be signed in to change your password." };
   }

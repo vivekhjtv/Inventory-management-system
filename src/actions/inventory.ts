@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getVerifiedUser } from "@/lib/auth";
 import { getRolePermissions } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
@@ -24,7 +24,7 @@ export async function inwardStock(payload: {
   docNo?: string;
   remarks?: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
   const perms = getRolePermissions(user.role, user.status);
@@ -109,7 +109,7 @@ export async function transferStock(payload: {
   docNo?: string;
   remarks?: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
   const perms = getRolePermissions(user.role, user.status);
@@ -221,7 +221,7 @@ export async function dispatchToSite(payload: {
   docNo?: string;
   remarks?: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
   const perms = getRolePermissions(user.role, user.status);
@@ -321,7 +321,7 @@ export async function returnFromSite(payload: {
   docNo?: string;
   remarks?: string;
 }) {
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
   const perms = getRolePermissions(user.role, user.status);
@@ -405,7 +405,7 @@ export async function addNewItem(payload: {
   unit: string;
   minThreshold?: number;
 }) {
-  const user = await getCurrentUser();
+  const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
   const perms = getRolePermissions(user.role, user.status);

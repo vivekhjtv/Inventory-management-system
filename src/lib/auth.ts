@@ -6,7 +6,8 @@ import { prisma } from "./prisma";
 const SECRET_KEY = new TextEncoder().encode(
   process.env.JWT_SECRET || "zaffine-super-secure-jwt-key-solar-inventory-2026"
 );
-export const COOKIE_NAME = "zaffine_session";
+// v2 cookie name forces logout of all old Supabase UUID sessions on MongoDB migration
+export const COOKIE_NAME = "zaffine_session_v2";
 
 export async function createSessionToken(user: SessionUser): Promise<string> {
   return await new SignJWT({
@@ -70,5 +71,35 @@ export async function setSessionCookie(user: SessionUser) {
 
 export async function removeSessionCookie() {
   const cookieStore = await cookies();
+  // Clear both old and new cookie names on logout
   cookieStore.delete(COOKIE_NAME);
+  cookieStore.delete("zaffine_session");
+}
+
+/**
+ * Use this in server actions instead of getCurrentUser().
+ * Re-fetches the user from the database to guarantee the real MongoDB ObjectId
+ * is used rather than whatever string was stored in the JWT.
+ */
+export async function getVerifiedUser(): Promise<SessionUser | null> {
+  try {
+    const sessionUser = await getCurrentUser();
+    if (!sessionUser?.email) return null;
+
+    const dbUser = await prisma.user.findUnique({
+      where: { email: sessionUser.email },
+    });
+    if (!dbUser) return null;
+
+    return {
+      id: dbUser.id,
+      fullName: dbUser.fullName,
+      email: dbUser.email,
+      phoneNumber: dbUser.phoneNumber,
+      role: dbUser.role as any,
+      status: dbUser.status as any,
+    };
+  } catch {
+    return null;
+  }
 }

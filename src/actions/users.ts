@@ -1,12 +1,12 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser } from "@/lib/auth";
+import { getVerifiedUser } from "@/lib/auth";
 import { Role, UserStatus } from "@/lib/types";
 import { revalidatePath } from "next/cache";
 
 export async function approveUser(userId: string, assignedRole: Role = "WORKER") {
-  const current = await getCurrentUser();
+  const current = await getVerifiedUser();
   if (!current || current.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only Super Admin can approve users." };
   }
@@ -31,7 +31,7 @@ export async function approveUser(userId: string, assignedRole: Role = "WORKER")
 }
 
 export async function updateUserRole(userId: string, newRole: Role) {
-  const current = await getCurrentUser();
+  const current = await getVerifiedUser();
   if (!current || current.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only Super Admin can change user roles." };
   }
@@ -63,7 +63,7 @@ export async function updateUserRole(userId: string, newRole: Role) {
 }
 
 export async function updateUserStatus(userId: string, newStatus: UserStatus) {
-  const current = await getCurrentUser();
+  const current = await getVerifiedUser();
   if (!current || current.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only Super Admin can change user status." };
   }
@@ -89,7 +89,7 @@ export async function updateUserStatus(userId: string, newStatus: UserStatus) {
 }
 
 export async function deleteUser(userId: string) {
-  const current = await getCurrentUser();
+  const current = await getVerifiedUser();
   if (!current || current.role !== "SUPER_ADMIN") {
     return { success: false, error: "Only Super Admin can delete users." };
   }
