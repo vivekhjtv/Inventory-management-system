@@ -7,7 +7,7 @@ const SECRET_KEY = new TextEncoder().encode(
 );
 const COOKIE_NAME = "zaffine_session_v2";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Static assets and internal next paths
