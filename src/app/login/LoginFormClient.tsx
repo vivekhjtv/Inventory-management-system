@@ -20,9 +20,20 @@ export function LoginFormClient() {
     formData.append("email", email);
     formData.append("password", password);
 
-    const res = await loginAction(formData);
-    if (res && !res.success) {
-      setError(res.error || "Login failed.");
+    try {
+      const res = await loginAction(formData);
+      if (res && !res.success) {
+        setError(res.error || "Login failed.");
+        setLoading(false);
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("NEXT_REDIRECT")) {
+        return;
+      }
+      setError(
+        err?.message ||
+          "An unexpected error occurred during login. Please check database connectivity."
+      );
       setLoading(false);
     }
   };

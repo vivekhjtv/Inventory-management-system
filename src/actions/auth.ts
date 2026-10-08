@@ -15,9 +15,19 @@ export async function loginAction(formData: FormData) {
     return { success: false, error: "Email and password are required." };
   }
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+  let user;
+  try {
+    user = await prisma.user.findUnique({
+      where: { email },
+    });
+  } catch (err: any) {
+    console.error("Database connection error in loginAction:", err);
+    return {
+      success: false,
+      error:
+        "Database error: Unable to connect or query database. Please check DATABASE_URL in Vercel settings and ensure 'npx prisma db push' has been run.",
+    };
+  }
 
   if (!user) {
     return { success: false, error: "Invalid email or password." };
@@ -65,9 +75,19 @@ export async function registerAction(formData: FormData) {
     return { success: false, error: "Password must be at least 6 characters long." };
   }
 
-  const existing = await prisma.user.findUnique({
-    where: { email },
-  });
+  let existing;
+  try {
+    existing = await prisma.user.findUnique({
+      where: { email },
+    });
+  } catch (err: any) {
+    console.error("Database error in registerAction:", err);
+    return {
+      success: false,
+      error:
+        "Database error: Unable to connect. Please ensure DATABASE_URL is configured and tables are created.",
+    };
+  }
 
   if (existing) {
     return { success: false, error: "An account with this email already exists." };

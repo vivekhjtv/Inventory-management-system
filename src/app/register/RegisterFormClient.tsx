@@ -24,9 +24,20 @@ export function RegisterFormClient() {
     formData.append("phoneNumber", phoneNumber);
     formData.append("password", password);
 
-    const res = await registerAction(formData);
-    if (res && !res.success) {
-      setError(res.error || "Registration failed.");
+    try {
+      const res = await registerAction(formData);
+      if (res && !res.success) {
+        setError(res.error || "Registration failed.");
+        setLoading(false);
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("NEXT_REDIRECT")) {
+        return;
+      }
+      setError(
+        err?.message ||
+          "An unexpected error occurred during registration. Please check database connectivity."
+      );
       setLoading(false);
     }
   };
