@@ -5,7 +5,7 @@ import { jwtVerify } from "jose";
 const SECRET_KEY = new TextEncoder().encode(
   process.env.JWT_SECRET || "zaffine-super-secure-jwt-key-solar-inventory-2026"
 );
-const COOKIE_NAME = "zaffine_session";
+const COOKIE_NAME = "zaffine_session_v2";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
