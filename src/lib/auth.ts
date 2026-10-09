@@ -71,7 +71,15 @@ export async function setSessionCookie(user: SessionUser) {
 
 export async function removeSessionCookie() {
   const cookieStore = await cookies();
-  // Clear both old and new cookie names on logout
+  // Aggressively expire session cookies across all browser engines
+  cookieStore.set(COOKIE_NAME, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 0,
+    expires: new Date(0),
+  });
   cookieStore.delete(COOKIE_NAME);
   cookieStore.delete("zaffine_session");
 }

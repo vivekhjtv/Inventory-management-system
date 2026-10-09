@@ -449,31 +449,31 @@ export function DashboardView({
       </div>
 
       {/* KPI METRIC CARDS - ALL 5 CORE LIFECYCLE STAGES */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
         {/* 1. Godown Stock */}
         <div
           onClick={() => setActiveLocation("GODOWN")}
           className={cn(
-            "p-4 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "GODOWN"
               ? "bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30"
               : "bg-white border-slate-200/90 hover:border-amber-300"
           )}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
-            <span className="flex items-center gap-1.5">
-              <Warehouse className="w-4 h-4 text-amber-500" />
-              Godown Stock
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+            <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
+              <Warehouse className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+              <span className="truncate">Godown</span>
             </span>
-            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-md border border-amber-200">
+            <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-amber-200 shrink-0">
               Main
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalGodownStock)}
           </div>
-          <p className="text-[11px] text-amber-700/80 mt-1 font-semibold">
-            {activeLocation === "GODOWN" ? "● Active View" : "Click to view Godown stock"}
+          <p className="text-[10px] sm:text-[11px] text-amber-700/80 mt-1 font-semibold truncate">
+            {activeLocation === "GODOWN" ? "● Active View" : "View Godown"}
           </p>
           <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-amber-500/5 rounded-full pointer-events-none" />
         </div>
@@ -482,54 +482,54 @@ export function DashboardView({
         <div
           onClick={() => setActiveLocation("OFFICE")}
           className={cn(
-            "p-4 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "OFFICE"
               ? "bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/30"
               : "bg-white border-slate-200/90 hover:border-blue-300"
           )}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
-            <span className="flex items-center gap-1.5">
-              <Building2 className="w-4 h-4 text-blue-500" />
-              Office Stock
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+            <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
+              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0" />
+              <span className="truncate">Office Stock</span>
             </span>
-            <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md border border-blue-200">
+            <span className="text-[9px] sm:text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 shrink-0">
               Staging
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalOfficeStock)}
           </div>
-          <p className="text-[11px] text-blue-700/80 mt-1 font-semibold">
-            {activeLocation === "OFFICE" ? "● Active View" : "Click to view Office stock"}
+          <p className="text-[10px] sm:text-[11px] text-blue-700/80 mt-1 font-semibold truncate">
+            {activeLocation === "OFFICE" ? "● Active View" : "View Office"}
           </p>
           <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-blue-500/5 rounded-full pointer-events-none" />
         </div>
 
-        {/* 3. Dispatched to Sites (NEW) */}
+        {/* 3. Dispatched to Sites */}
         <div
           onClick={() => setActiveLocation("DISPATCH")}
           className={cn(
-            "p-4 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "DISPATCH"
               ? "bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/30"
               : "bg-white border-slate-200/90 hover:border-purple-300"
           )}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
-            <span className="flex items-center gap-1.5">
-              <Truck className="w-4 h-4 text-purple-600" />
-              Dispatched Sites
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+            <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
+              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 shrink-0" />
+              <span className="truncate">Dispatches</span>
             </span>
-            <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-md border border-purple-200">
+            <span className="text-[9px] sm:text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-purple-200 shrink-0">
               {stats.totalDispatchesCount ?? dispatches.length} Jobs
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalDispatchedQty ?? 0)}
           </div>
-          <p className="text-[11px] text-purple-700/80 mt-1 font-semibold">
-            {activeLocation === "DISPATCH" ? "● Active View" : "Click to view Dispatches"}
+          <p className="text-[10px] sm:text-[11px] text-purple-700/80 mt-1 font-semibold truncate">
+            {activeLocation === "DISPATCH" ? "● Active View" : "View Dispatches"}
           </p>
           <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-purple-500/5 rounded-full pointer-events-none" />
         </div>
@@ -538,25 +538,25 @@ export function DashboardView({
         <div
           onClick={() => setOnlyLowStock(!onlyLowStock)}
           className={cn(
-            "p-4 sm:p-5 rounded-2xl border shadow-2xs cursor-pointer transition-all relative overflow-hidden",
+            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs cursor-pointer transition-all relative overflow-hidden",
             stats.lowStockCount > 0
               ? "bg-rose-50/70 border-rose-200 hover:bg-rose-50 text-rose-900"
               : "bg-white border-slate-200/90 text-slate-900"
           )}
         >
-          <div className="flex items-center justify-between text-xs font-bold mb-2">
-            <span className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-1 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+            <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
               <AlertTriangle
                 className={cn(
-                  "w-4 h-4",
+                  "w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0",
                   stats.lowStockCount > 0 ? "text-rose-600" : "text-slate-400"
                 )}
               />
-              Low Alerts
+              <span className="truncate">Low Alerts</span>
             </span>
             <span
               className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-md border",
+                "text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md border shrink-0",
                 onlyLowStock
                   ? "bg-rose-600 text-white border-rose-600"
                   : "bg-rose-100 text-rose-800 border-rose-200"
@@ -565,11 +565,11 @@ export function DashboardView({
               {onlyLowStock ? "Filtered" : "Filter"}
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black tracking-tight font-mono">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight font-mono">
             {stats.lowStockCount}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1 font-medium">
-            {onlyLowStock ? "Click to view all stock" : "Near minimum threshold"}
+          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 font-medium truncate">
+            {onlyLowStock ? "Viewing filtered" : "Near threshold"}
           </p>
         </div>
 
@@ -577,61 +577,61 @@ export function DashboardView({
         <div
           onClick={() => setActiveLocation("ALL")}
           className={cn(
-            "p-4 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all col-span-2 sm:col-span-1",
+            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all col-span-2 sm:col-span-1",
             activeLocation === "ALL"
               ? "bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/30"
               : "bg-white border-slate-200/90 hover:border-emerald-300"
           )}
         >
-          <div className="flex items-center justify-between text-slate-500 text-xs font-bold mb-2">
-            <span className="flex items-center gap-1.5">
-              <Boxes className="w-4 h-4 text-emerald-500" />
-              Catalog Items
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+            <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
+              <Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+              <span className="truncate">Catalog Items</span>
             </span>
-            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200/50">
-              76 Models
+            <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-emerald-200/50 shrink-0">
+              {stats.totalItems} Models
             </span>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
             {stats.totalItems}
           </div>
-          <p className="text-[11px] text-emerald-700/80 mt-1 font-semibold">
-            {activeLocation === "ALL" ? "● Active View" : "Click to view All comparison"}
+          <p className="text-[10px] sm:text-[11px] text-emerald-700/80 mt-1 font-semibold truncate">
+            {activeLocation === "ALL" ? "● Active View" : "View Catalog"}
           </p>
         </div>
       </div>
 
       {/* DISTINCT 4-WAY LOCATION TAB SWITCHER */}
-      <div className="bg-slate-200/70 p-1.5 rounded-2xl flex flex-col md:flex-row gap-1.5 shadow-2xs">
+      <div className="bg-slate-200/70 p-1.5 rounded-2xl grid grid-cols-2 md:flex md:flex-row gap-1.5 shadow-2xs">
         <button
           type="button"
           onClick={() => setActiveLocation("ALL")}
           className={cn(
-            "flex-1 py-3 px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all",
+            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
             activeLocation === "ALL"
               ? "bg-white text-slate-900 shadow-sm"
               : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
           )}
         >
-          <Layers className="w-4 h-4 text-amber-500" />
-          <span>All Facilities (Combined)</span>
+          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+          <span className="truncate">All Facilities</span>
         </button>
 
         <button
           type="button"
           onClick={() => setActiveLocation("GODOWN")}
           className={cn(
-            "flex-1 py-3 px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all",
+            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
             activeLocation === "GODOWN"
               ? "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
               : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
           )}
         >
-          <Warehouse className="w-4 h-4" />
-          <span>Godown Warehouse</span>
+          <Warehouse className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="truncate">Godown</span>
           <span
             className={cn(
-              "text-[10px] px-2 py-0.5 rounded-full font-bold",
+              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
               activeLocation === "GODOWN"
                 ? "bg-white/20 text-white"
                 : "bg-amber-100 text-amber-900"
@@ -645,17 +645,17 @@ export function DashboardView({
           type="button"
           onClick={() => setActiveLocation("OFFICE")}
           className={cn(
-            "flex-1 py-3 px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all",
+            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
             activeLocation === "OFFICE"
               ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
               : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
           )}
         >
-          <Building2 className="w-4 h-4" />
-          <span>Office Hub Staging</span>
+          <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="truncate">Office Hub</span>
           <span
             className={cn(
-              "text-[10px] px-2 py-0.5 rounded-full font-bold",
+              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
               activeLocation === "OFFICE"
                 ? "bg-white/20 text-white"
                 : "bg-blue-100 text-blue-900"
@@ -669,17 +669,17 @@ export function DashboardView({
           type="button"
           onClick={() => setActiveLocation("DISPATCH")}
           className={cn(
-            "flex-1 py-3 px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all",
+            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
             activeLocation === "DISPATCH"
               ? "bg-purple-600 text-white shadow-sm shadow-purple-600/20"
               : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
           )}
         >
-          <Truck className="w-4 h-4" />
-          <span>Dispatched Items</span>
+          <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+          <span className="truncate">Dispatched</span>
           <span
             className={cn(
-              "text-[10px] px-2 py-0.5 rounded-full font-bold",
+              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
               activeLocation === "DISPATCH"
                 ? "bg-white/20 text-white"
                 : "bg-purple-100 text-purple-900"
@@ -691,7 +691,7 @@ export function DashboardView({
       </div>
 
       {/* FILTER & SEARCH BAR */}
-      <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
+      <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1">
@@ -704,7 +704,7 @@ export function DashboardView({
                   ? "Search by item name, site, customer, technician, or doc no..."
                   : "Search solar model, category, or brand..."
               }
-              className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
+              className="w-full pl-9 pr-14 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
             />
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             {search && (
@@ -718,12 +718,12 @@ export function DashboardView({
             )}
           </div>
 
-          {/* Export & Refresh */}
+          {/* Export CSV */}
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleExportCSV}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
+              className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors touch-target"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>Export CSV</span>
@@ -732,12 +732,12 @@ export function DashboardView({
         </div>
 
         {/* Category Pills Filter */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar text-xs">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none text-xs">
           <button
             type="button"
             onClick={() => setSelectedCategory("ALL")}
             className={cn(
-              "px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition-all",
+              "px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all touch-target min-h-[36px] shrink-0",
               selectedCategory === "ALL"
                 ? "bg-slate-900 text-white shadow-2xs"
                 : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
@@ -753,7 +753,7 @@ export function DashboardView({
                 type="button"
                 onClick={() => setSelectedCategory(cat.key)}
                 className={cn(
-                  "px-3 py-1.5 rounded-lg font-bold whitespace-nowrap transition-all",
+                  "px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all touch-target min-h-[36px] shrink-0",
                   isSelected
                     ? "bg-slate-900 text-white shadow-2xs"
                     : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
@@ -766,68 +766,162 @@ export function DashboardView({
         </div>
       </div>
 
-      {/* MOBILE ACCORDIONS VIEW */}
+      {/* MOBILE DISPATCH SUB-VIEW SWITCHER */}
+      {activeLocation === "DISPATCH" && (
+        <div className="md:hidden flex items-center bg-purple-100/70 p-1 rounded-2xl text-xs font-bold gap-1 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setDispatchViewMode("LOG")}
+            className={cn(
+              "flex-1 py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center min-w-0 touch-target",
+              dispatchViewMode === "LOG"
+                ? "bg-white text-purple-950 shadow-xs"
+                : "text-purple-800 hover:text-purple-950"
+            )}
+          >
+            <ListFilter className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Job Records ({processedDispatches.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDispatchViewMode("SUMMARY_BY_ITEM")}
+            className={cn(
+              "flex-1 py-2 px-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 text-center min-w-0 touch-target",
+              dispatchViewMode === "SUMMARY_BY_ITEM"
+                ? "bg-white text-purple-950 shadow-xs"
+                : "text-purple-800 hover:text-purple-950"
+            )}
+          >
+            <BarChart3 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate">Item Breakdown ({dispatchedSummaryByItem.length})</span>
+          </button>
+        </div>
+      )}
+
+      {/* MOBILE ACCORDIONS / CARDS VIEW */}
       <div className="md:hidden space-y-3">
         {activeLocation === "DISPATCH" ? (
-          /* Mobile Dispatches List */
-          <div className="space-y-3">
-            {paginatedDispatches.length === 0 ? (
-              <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
-                No dispatched items found matching your filters.
-              </div>
-            ) : (
-              paginatedDispatches.map((d) => (
-                <div
-                  key={d.id}
-                  className="bg-white p-4 rounded-2xl border border-purple-100 shadow-2xs space-y-2.5"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-purple-600 shrink-0" />
-                        <span>{d.siteOrCustomer}</span>
-                      </div>
-                      <div className="text-xs text-slate-500 font-medium mt-0.5">
-                        {d.itemName} ({d.category})
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-900 font-black text-sm font-mono shrink-0">
-                      {d.quantity} {d.unit}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Technician:</span>
-                      <span className="font-bold text-slate-800">
-                        {d.workerName || "Unassigned"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Challan / Doc:</span>
-                      <span className="font-mono font-bold text-slate-800">
-                        {d.referenceDocNo || "N/A"}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-slate-400 block text-[10px]">Dispatched:</span>
-                      <span className="text-slate-700">
-                        {new Date(d.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <div className="flex items-end justify-end">
-                      <Link
-                        href={`/returns?itemId=${d.itemId}&site=${encodeURIComponent(d.siteOrCustomer)}`}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors"
-                      >
-                        Return Leftover
-                      </Link>
-                    </div>
-                  </div>
+          dispatchViewMode === "SUMMARY_BY_ITEM" ? (
+            /* Mobile Dispatched Summary By Item */
+            <div className="space-y-3">
+              {paginatedSummaryItems.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                  No items found in dispatch summary.
                 </div>
-              ))
-            )}
-          </div>
+              ) : (
+                paginatedSummaryItems.map((s) => (
+                  <div
+                    key={s.itemId}
+                    className="bg-white p-4 rounded-2xl border border-purple-100 shadow-2xs space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-extrabold text-sm text-slate-900 truncate">
+                          {s.itemName}
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium truncate mt-0.5">
+                          {s.category} • {s.dispatchCount} Dispatched Jobs
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-900 font-black text-sm font-mono shrink-0">
+                        {formatNumber(s.totalDispatchedQty)} {s.unit}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div className="bg-slate-50 p-2 rounded-xl text-center">
+                        <span className="text-[10px] text-slate-500 block font-medium">
+                          Current Office
+                        </span>
+                        <span className="font-bold text-blue-700 font-mono text-xs sm:text-sm">
+                          {formatNumber(s.officeQty)} {s.unit}
+                        </span>
+                      </div>
+                      <div className="bg-slate-50 p-2 rounded-xl text-center">
+                        <span className="text-[10px] text-slate-500 block font-medium">
+                          Current Godown
+                        </span>
+                        <span className="font-bold text-amber-700 font-mono text-xs sm:text-sm">
+                          {formatNumber(s.godownQty)} {s.unit}
+                        </span>
+                      </div>
+                    </div>
+
+                    {s.lastSite && (
+                      <div className="text-[11px] text-slate-400 pt-1 flex items-center justify-between">
+                        <span className="truncate">Last site: {s.lastSite}</span>
+                        {s.lastDispatchedDate && (
+                          <span className="shrink-0 ml-1">
+                            {new Date(s.lastDispatchedDate).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          ) : (
+            /* Mobile Dispatches Individual Log List */
+            <div className="space-y-3">
+              {paginatedDispatches.length === 0 ? (
+                <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs">
+                  No dispatched items found matching your filters.
+                </div>
+              ) : (
+                paginatedDispatches.map((d) => (
+                  <div
+                    key={d.id}
+                    className="bg-white p-4 rounded-2xl border border-purple-100 shadow-2xs space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5 min-w-0">
+                          <MapPin className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                          <span className="truncate">{d.siteOrCustomer}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 font-medium mt-0.5 truncate">
+                          {d.itemName} ({d.category})
+                        </div>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-xl bg-purple-100 text-purple-900 font-black text-sm font-mono shrink-0">
+                        {d.quantity} {d.unit}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-[11px] text-slate-600">
+                      <div className="min-w-0">
+                        <span className="text-slate-400 block text-[10px]">Technician:</span>
+                        <span className="font-bold text-slate-800 truncate block">
+                          {d.workerName || "Unassigned"}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-slate-400 block text-[10px]">Challan / Doc:</span>
+                        <span className="font-mono font-bold text-slate-800 truncate block">
+                          {d.referenceDocNo || "N/A"}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-slate-400 block text-[10px]">Dispatched:</span>
+                        <span className="text-slate-700 truncate block">
+                          {new Date(d.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <div className="flex items-end justify-end">
+                        <Link
+                          href={`/returns?itemId=${d.itemId}&site=${encodeURIComponent(d.siteOrCustomer)}`}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors shrink-0 touch-target flex items-center justify-center"
+                        >
+                          Return Leftover
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )
         ) : (
           /* Mobile Stock by Categories */
           CATEGORIES.map((cat) => {
@@ -843,14 +937,14 @@ export function DashboardView({
                 <button
                   type="button"
                   onClick={() => toggleCategory(cat.key)}
-                  className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors touch-target"
+                  className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 transition-colors touch-target min-w-0"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold text-sm shrink-0">
                       📦
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 text-sm">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 text-sm truncate">
                         {cat.label}
                       </h3>
                       <p className="text-[11px] text-slate-400">
@@ -860,7 +954,7 @@ export function DashboardView({
                   </div>
                   <ChevronDown
                     className={cn(
-                      "w-5 h-5 text-slate-400 transition-transform",
+                      "w-5 h-5 text-slate-400 transition-transform shrink-0 ml-2",
                       isExpanded && "rotate-180 text-amber-500"
                     )}
                   />
@@ -882,46 +976,67 @@ export function DashboardView({
                         return (
                           <div key={item.id} className="p-3.5 hover:bg-slate-50/50">
                             <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-bold text-sm text-slate-900">
+                              <div className="min-w-0 flex-1">
+                                <div className="font-bold text-sm text-slate-900 truncate">
                                   {item.name}
                                 </div>
-                                <div className="text-[11px] text-slate-400 font-medium">
+                                <div className="text-[11px] text-slate-400 font-medium truncate">
                                   Unit: {item.unit}
                                   {item.minThreshold ? ` • Min: ${item.minThreshold}` : ""}
                                 </div>
                               </div>
                               {isLow && (
-                                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 text-[10px] font-bold shrink-0">
                                   LOW
                                 </span>
                               )}
                             </div>
 
-                            <div className="grid grid-cols-3 gap-2 mt-2 pt-2 border-t border-slate-100/60 text-center">
-                              <div className="bg-amber-50/60 p-1.5 rounded-xl">
+                            <div className="grid grid-cols-3 gap-1.5 sm:gap-2 mt-2 pt-2 border-t border-slate-100/60 text-center">
+                              <div
+                                className={cn(
+                                  "p-1.5 rounded-xl transition-colors",
+                                  activeLocation === "GODOWN"
+                                    ? "bg-amber-100 ring-1 ring-amber-500/40"
+                                    : "bg-amber-50/60"
+                                )}
+                              >
                                 <span className="text-[10px] text-amber-800 font-medium block">
                                   Godown
                                 </span>
-                                <span className="text-sm font-bold text-amber-950 font-mono">
+                                <span className="text-xs sm:text-sm font-bold text-amber-950 font-mono truncate block">
                                   {formatNumber(item.godownQty)}
                                 </span>
                               </div>
 
-                              <div className="bg-blue-50/60 p-1.5 rounded-xl">
+                              <div
+                                className={cn(
+                                  "p-1.5 rounded-xl transition-colors",
+                                  activeLocation === "OFFICE"
+                                    ? "bg-blue-100 ring-1 ring-blue-500/40"
+                                    : "bg-blue-50/60"
+                                )}
+                              >
                                 <span className="text-[10px] text-blue-800 font-medium block">
                                   Office
                                 </span>
-                                <span className="text-sm font-bold text-blue-950 font-mono">
+                                <span className="text-xs sm:text-sm font-bold text-blue-950 font-mono truncate block">
                                   {formatNumber(item.officeQty)}
                                 </span>
                               </div>
 
-                              <div className="bg-slate-100 p-1.5 rounded-xl">
+                              <div
+                                className={cn(
+                                  "p-1.5 rounded-xl transition-colors",
+                                  activeLocation === "ALL"
+                                    ? "bg-slate-200 ring-1 ring-slate-400/40"
+                                    : "bg-slate-100"
+                                )}
+                              >
                                 <span className="text-[10px] text-slate-600 font-medium block">
                                   Total
                                 </span>
-                                <span className="text-sm font-black text-slate-900 font-mono">
+                                <span className="text-xs sm:text-sm font-black text-slate-900 font-mono truncate block">
                                   {formatNumber(item.totalQty)}
                                 </span>
                               </div>
@@ -937,6 +1052,45 @@ export function DashboardView({
           })
         )}
       </div>
+
+      {/* MOBILE-FRIENDLY PAGINATION BAR (Visible when active view has paginated data) */}
+      {activeCount > 0 && (
+        <div className="md:hidden bg-white p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2">
+          <div className="text-center text-xs text-slate-500 font-medium">
+            Showing <span className="font-extrabold text-slate-900">{startIndexDisplay}</span> to{" "}
+            <span className="font-extrabold text-slate-900">{endIndexDisplay}</span> of{" "}
+            <span className="font-extrabold text-slate-900">{activeCount}</span>{" "}
+            {activeLocation === "DISPATCH"
+              ? dispatchViewMode === "LOG"
+                ? "dispatches"
+                : "models"
+              : "items"}
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setCurrentPage(Math.max(1, safeCurrentPage - 1))}
+              disabled={safeCurrentPage === 1}
+              className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-slate-700 flex items-center justify-center gap-1 transition-colors touch-target"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              <span>Previous</span>
+            </button>
+            <span className="text-xs font-bold text-slate-700 px-2 shrink-0">
+              Page {safeCurrentPage} / {totalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(Math.min(totalPages, safeCurrentPage + 1))}
+              disabled={safeCurrentPage === totalPages}
+              className="flex-1 py-2 px-3 rounded-xl border border-slate-200 hover:bg-slate-100 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-slate-700 flex items-center justify-center gap-1 transition-colors touch-target"
+            >
+              <span>Next</span>
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* DESKTOP VIEW: PROPORTIONAL DATA TABLE WITH ZERO HORIZONTAL SCROLLBAR */}
       <div className="hidden md:block bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden">

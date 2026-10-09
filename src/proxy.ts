@@ -36,21 +36,38 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = pathname === "/login" || pathname === "/register";
   const isPendingPage = pathname === "/pending";
 
-  // Auth pages are always accessible directly to avoid redirect loops
+  // If already logged in and navigating to auth pages (/login or /register)
   if (isAuthPage) {
-    return NextResponse.next();
+    if (sessionUser) {
+      if (sessionUser.status === "PENDING") {
+        return NextResponse.redirect(new URL("/pending", request.url));
+      }
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
+    const response = NextResponse.next();
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return response;
   }
 
-  // If not logged in
+  // If not logged in and accessing protected pages
   if (!sessionUser) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("from", pathname);
-    return NextResponse.redirect(loginUrl);
+    if (pathname !== "/") {
+      loginUrl.searchParams.set("from", pathname);
+    }
+    const response = NextResponse.redirect(loginUrl);
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+    return response;
   }
 
-  // User is logged in
+  // User is logged in but pending approval
   if (sessionUser.status === "PENDING" && !isPendingPage) {
     return NextResponse.redirect(new URL("/pending", request.url));
+  }
+
+  // Active user on /pending page
+  if (sessionUser.status === "ACTIVE" && isPendingPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
   // Super Admin route check
@@ -58,7 +75,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/dashboard?denied=admin_only", request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  // Prevent browser from caching protected authenticated pages (prevents back-button restoring protected views after logout)
+  response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  response.headers.set("Pragma", "no-cache");
+  response.headers.set("Expires", "0");
+  return response;
 }
 
 export const config = {

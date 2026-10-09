@@ -145,6 +145,7 @@ export async function quickDemoLoginAction(email: string) {
 
 export async function logoutAction() {
   await removeSessionCookie();
+  revalidatePath("/", "layout");
   redirect("/login");
 }
 

@@ -342,24 +342,24 @@ export function DispatchFormClient({
         </p>
 
         {/* Mode Selector Tabs */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
-          <div className="inline-flex p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60">
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="w-full sm:w-auto grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 gap-1">
             <button
               type="button"
               onClick={() => {
                 setActiveTab("batch");
                 setStatusMessage(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "batch"
                   ? "bg-white text-amber-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Layers className="w-4 h-4 text-amber-600" />
-              <span>Multi-Item Site Kit Checkout</span>
+              <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
+              <span className="truncate">Batch Kit</span>
               {batchItems.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-amber-600 text-white rounded-full text-[10px] font-black">
+                <span className="px-1.5 py-0.2 bg-amber-600 text-white rounded-full text-[10px] font-black shrink-0">
                   {batchItems.length}
                 </span>
               )}
@@ -371,14 +371,14 @@ export function DispatchFormClient({
                 setActiveTab("single");
                 setStatusMessage(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "single"
                   ? "bg-white text-slate-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Single Item Quick Checkout</span>
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+              <span className="truncate">Single Item</span>
             </button>
           </div>
 
@@ -608,15 +608,15 @@ export function DispatchFormClient({
                       key={entry.item.id}
                       className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <span className="w-6 h-6 rounded-lg bg-amber-50 text-amber-700 text-xs font-black flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="font-bold text-sm text-slate-900 truncate">
                             {entry.item.name}
                           </div>
-                          <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                          <div className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
                             <span>{entry.item.category}</span>
                             <span>•</span>
                             <span>
@@ -627,53 +627,55 @@ export function DispatchFormClient({
                       </div>
 
                       {/* Quantity Controls and Remove button */}
-                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdateBatchItemQty(entry.item.id, Math.max(1, entry.quantity - 1))
-                            }
-                            className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            max={entry.item.officeQty}
-                            value={entry.quantity}
-                            onChange={(e) =>
-                              handleUpdateBatchItemQty(
-                                entry.item.id,
-                                Math.min(entry.item.officeQty, Math.max(1, Number(e.target.value) || 1))
-                              )
-                            }
-                            className="w-16 text-center text-xs font-black text-slate-900 py-1 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdateBatchItemQty(
-                                entry.item.id,
-                                Math.min(entry.item.officeQty, entry.quantity + 1)
-                              )
-                            }
-                            disabled={entry.quantity >= entry.item.officeQty}
-                            className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold disabled:opacity-40"
-                          >
-                            +
-                          </button>
+                      <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateBatchItemQty(entry.item.id, Math.max(1, entry.quantity - 1))
+                              }
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold touch-target flex items-center justify-center"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              max={entry.item.officeQty}
+                              value={entry.quantity}
+                              onChange={(e) =>
+                                handleUpdateBatchItemQty(
+                                  entry.item.id,
+                                  Math.min(entry.item.officeQty, Math.max(1, Number(e.target.value) || 1))
+                                )
+                              }
+                              className="w-16 text-center text-xs font-black text-slate-900 py-1 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateBatchItemQty(
+                                  entry.item.id,
+                                  Math.min(entry.item.officeQty, entry.quantity + 1)
+                                )
+                              }
+                              disabled={entry.quantity >= entry.item.officeQty}
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold disabled:opacity-40 touch-target flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <span className="text-xs font-semibold text-slate-500">
+                            {entry.item.unit}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-500 w-10">
-                          {entry.item.unit}
-                        </span>
 
                         <button
                           type="button"
                           onClick={() => handleRemoveFromBatch(entry.item.id)}
                           title="Remove item"
-                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
+                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors touch-target flex items-center justify-center"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -697,14 +699,19 @@ export function DispatchFormClient({
           <button
             type="submit"
             disabled={loading || batchItems.length === 0 || !batchSiteOrCustomer.trim()}
-            className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-amber-500/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-amber-500/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
           >
             {loading ? (
               <span>Dispatching {batchItems.length} Materials to Site...</span>
+            ) : batchItems.length === 0 ? (
+              <>
+                <Truck className="w-5 h-5 shrink-0" />
+                <span>Add Materials Above to Dispatch to Site</span>
+              </>
             ) : (
               <>
-                <Truck className="w-5 h-5" />
-                <span>
+                <Truck className="w-5 h-5 shrink-0" />
+                <span className="text-center">
                   Confirm & Dispatch {batchItems.length} Material{batchItems.length !== 1 ? "s" : ""} (
                   {formatNumber(totalBatchUnits)} Units) for Site
                 </span>
@@ -835,13 +842,13 @@ export function DispatchFormClient({
               singleAvailableOffice <= 0 ||
               !siteOrCustomer.trim()
             }
-            className="w-full py-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
           >
             {loading ? (
               <span>Processing Dispatch...</span>
             ) : (
               <>
-                <Truck className="w-5 h-5" />
+                <Truck className="w-5 h-5 shrink-0" />
                 <span>Confirm Dispatch to Site</span>
               </>
             )}

@@ -11,7 +11,7 @@ model User {
   id           String   @id @default(auto()) @map("_id") @db.ObjectId
   fullName     String
   email        String   @unique
-  phoneNumber  String?  @unique
+  phoneNumber  String?
   passwordHash String
   role         String   @default("WORKER")
   status       String   @default("PENDING")

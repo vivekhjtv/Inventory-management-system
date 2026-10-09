@@ -148,7 +148,7 @@ export function ReturnFormClient({
       {/* Return Form */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-2xs space-y-5"
+        className="bg-white p-4 sm:p-7 rounded-3xl border border-slate-200/80 shadow-2xs space-y-5"
       >
         <ItemCombobox
           items={items}
@@ -159,12 +159,12 @@ export function ReturnFormClient({
         />
 
         {selectedItem && (
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-slate-600">
-              <Building2 className="w-4 h-4 text-blue-500" />
-              <span>Current Office Stock:</span>
+          <div className="p-3 sm:p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex flex-wrap items-center justify-between gap-1.5 text-xs">
+            <div className="flex items-center gap-2 text-slate-600 min-w-0">
+              <Building2 className="w-4 h-4 text-blue-500 shrink-0" />
+              <span className="truncate">Current Office Stock:</span>
             </div>
-            <span className="font-bold text-slate-900">
+            <span className="font-bold text-slate-900 shrink-0">
               {formatNumber(selectedItem.officeQty)} {selectedItem.unit}
             </span>
           </div>
@@ -245,13 +245,13 @@ export function ReturnFormClient({
         <button
           type="submit"
           disabled={loading || !selectedItem || quantity <= 0 || !siteOrCustomer.trim()}
-          className="w-full py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+          className="w-full py-3.5 sm:py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-indigo-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
         >
           {loading ? (
             <span>Processing Return...</span>
           ) : (
             <>
-              <RotateCcw className="w-5 h-5" />
+              <RotateCcw className="w-5 h-5 shrink-0" />
               <span>Confirm Return to Office Stock</span>
             </>
           )}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { loginAction } from "@/actions/auth";
 import { Sun, LogIn, AlertCircle } from "lucide-react";
@@ -10,6 +10,16 @@ export function LoginFormClient() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -56,7 +66,7 @@ export function LoginFormClient() {
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 sm:px-8 shadow-xl shadow-slate-200/60 rounded-3xl border border-slate-200/80 space-y-6">
+        <div className="bg-white py-6 px-5 sm:py-8 sm:px-8 shadow-xl shadow-slate-200/60 rounded-3xl border border-slate-200/80 space-y-6">
           {error && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />

@@ -61,14 +61,14 @@ export function QuantityStepper({
 
   return (
     <div className="w-full space-y-2">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-1">
         <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600">
           {label} <span className="text-amber-500">*</span>
         </label>
         {max !== null && max !== undefined && (
           <span
             className={cn(
-              "text-xs font-semibold",
+              "text-xs font-semibold shrink-0",
               isExceeded ? "text-rose-600 animate-pulse" : "text-slate-500"
             )}
           >
@@ -83,10 +83,10 @@ export function QuantityStepper({
           type="button"
           onClick={handleDecrement}
           disabled={value <= 0}
-          className="w-14 h-14 shrink-0 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all touch-target"
+          className="w-12 sm:w-14 h-12 sm:h-14 shrink-0 rounded-2xl bg-white border border-slate-200 shadow-xs flex items-center justify-center text-slate-700 hover:bg-slate-50 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all touch-target"
           aria-label="Decrease quantity"
         >
-          <Minus className="w-6 h-6" />
+          <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
 
         <div className="relative flex-1">
@@ -100,13 +100,13 @@ export function QuantityStepper({
             placeholder="0"
             onChange={handleDirectInput}
             className={cn(
-              "w-full h-14 text-center text-2xl font-bold rounded-2xl border bg-white shadow-xs focus:outline-none transition-all",
+              "w-full h-12 sm:h-14 text-center text-xl sm:text-2xl font-bold rounded-2xl border bg-white shadow-xs focus:outline-none transition-all pr-12 pl-4",
               isExceeded
                 ? "border-rose-500 text-rose-600 ring-2 ring-rose-500/20"
                 : "border-slate-200 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 text-slate-900"
             )}
           />
-          <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 uppercase pointer-events-none">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] sm:text-xs font-bold text-slate-400 uppercase pointer-events-none truncate max-w-[40px]">
             {unit}
           </span>
         </div>
@@ -115,10 +115,10 @@ export function QuantityStepper({
           type="button"
           onClick={handleIncrement}
           disabled={max !== null && max !== undefined && value >= max}
-          className="w-14 h-14 shrink-0 rounded-2xl bg-amber-500 text-white shadow-xs flex items-center justify-center hover:bg-amber-600 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all touch-target"
+          className="w-12 sm:w-14 h-12 sm:h-14 shrink-0 rounded-2xl bg-amber-500 text-white shadow-xs flex items-center justify-center hover:bg-amber-600 active:scale-95 disabled:opacity-40 disabled:pointer-events-none transition-all touch-target"
           aria-label="Increase quantity"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
       </div>
 

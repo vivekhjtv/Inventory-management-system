@@ -59,7 +59,7 @@ export function RegisterFormClient() {
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-6 sm:px-8 shadow-xl shadow-slate-200/60 rounded-3xl border border-slate-200/80 space-y-5">
+        <div className="bg-white py-6 px-5 sm:py-8 sm:px-8 shadow-xl shadow-slate-200/60 rounded-3xl border border-slate-200/80 space-y-5">
           {/* RBAC Notice */}
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-start gap-2.5">
             <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -109,7 +109,7 @@ export function RegisterFormClient() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Mobile / Phone Number
+                Mobile / Phone Number <span className="text-slate-400 font-normal lowercase tracking-normal">(optional)</span>
               </label>
               <input
                 type="tel"

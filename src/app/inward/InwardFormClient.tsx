@@ -259,24 +259,24 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
         </p>
 
         {/* Mode Selector Tabs */}
-        <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between flex-wrap gap-3">
-          <div className="inline-flex p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60">
+        <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="w-full sm:w-auto grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 gap-1">
             <button
               type="button"
               onClick={() => {
                 setActiveTab("batch");
                 setStatusMessage(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "batch"
                   ? "bg-white text-emerald-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Layers className="w-4 h-4 text-emerald-600" />
-              <span>Multi-Item Batch Entry</span>
+              <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 shrink-0" />
+              <span className="truncate">Batch Entry</span>
               {batchItems.length > 0 && (
-                <span className="px-1.5 py-0.2 bg-emerald-600 text-white rounded-full text-[10px] font-black">
+                <span className="px-1.5 py-0.2 bg-emerald-600 text-white rounded-full text-[10px] font-black shrink-0">
                   {batchItems.length}
                 </span>
               )}
@@ -288,14 +288,14 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
                 setActiveTab("single");
                 setStatusMessage(null);
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "single"
                   ? "bg-white text-slate-900 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              <span>Single Item Quick Entry</span>
+              <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+              <span className="truncate">Single Item</span>
             </button>
           </div>
 
@@ -492,15 +492,15 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
                       key={entry.item.id}
                       className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
                         <span className="w-6 h-6 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-black flex items-center justify-center shrink-0">
                           {idx + 1}
                         </span>
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <div className="font-bold text-sm text-slate-900 truncate">
                             {entry.item.name}
                           </div>
-                          <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                          <div className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
                             <span>{entry.item.category}</span>
                             <span>•</span>
                             <span>
@@ -511,43 +511,45 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
                       </div>
 
                       {/* Quantity Controls and Remove button */}
-                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleUpdateBatchItemQty(entry.item.id, Math.max(1, entry.quantity - 1))
-                            }
-                            className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold"
-                          >
-                            -
-                          </button>
-                          <input
-                            type="number"
-                            min="1"
-                            value={entry.quantity}
-                            onChange={(e) =>
-                              handleUpdateBatchItemQty(entry.item.id, Math.max(1, Number(e.target.value) || 1))
-                            }
-                            className="w-16 text-center text-xs font-black text-slate-900 py-1 focus:outline-none"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => handleUpdateBatchItemQty(entry.item.id, entry.quantity + 1)}
-                            className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold"
-                          >
-                            +
-                          </button>
+                      <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-white">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                handleUpdateBatchItemQty(entry.item.id, Math.max(1, entry.quantity - 1))
+                              }
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold touch-target flex items-center justify-center"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="1"
+                              value={entry.quantity}
+                              onChange={(e) =>
+                                handleUpdateBatchItemQty(entry.item.id, Math.max(1, Number(e.target.value) || 1))
+                              }
+                              className="w-16 text-center text-xs font-black text-slate-900 py-1 focus:outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateBatchItemQty(entry.item.id, entry.quantity + 1)}
+                              className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 font-bold touch-target flex items-center justify-center"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <span className="text-xs font-semibold text-slate-500">
+                            {entry.item.unit}
+                          </span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-500 w-10">
-                          {entry.item.unit}
-                        </span>
 
                         <button
                           type="button"
                           onClick={() => handleRemoveFromBatch(entry.item.id)}
                           title="Remove item"
-                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors"
+                          className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition-colors touch-target flex items-center justify-center"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -571,14 +573,19 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
           <button
             type="submit"
             disabled={loading || batchItems.length === 0}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-emerald-600/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
           >
             {loading ? (
               <span>Receiving {batchItems.length} Items into Godown...</span>
+            ) : batchItems.length === 0 ? (
+              <>
+                <ArrowDownToLine className="w-5 h-5 shrink-0" />
+                <span>Add Items Above to Inward to Godown</span>
+              </>
             ) : (
               <>
-                <ArrowDownToLine className="w-5 h-5" />
-                <span>
+                <ArrowDownToLine className="w-5 h-5 shrink-0" />
+                <span className="text-center">
                   Confirm & Inward {batchItems.length} Item{batchItems.length !== 1 ? "s" : ""} (
                   {formatNumber(totalBatchUnits)} Units) to Godown
                 </span>
@@ -675,13 +682,13 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
           <button
             type="submit"
             disabled={loading || !selectedItem || quantity <= 0}
-            className="w-full py-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-base shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
           >
             {loading ? (
               <span>Processing Inward...</span>
             ) : (
               <>
-                <ArrowDownToLine className="w-5 h-5" />
+                <ArrowDownToLine className="w-5 h-5 shrink-0" />
                 <span>Confirm Inward to Godown</span>
               </>
             )}

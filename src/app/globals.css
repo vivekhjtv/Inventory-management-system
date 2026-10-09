@@ -16,6 +16,14 @@
     -webkit-tap-highlight-color: transparent;
   }
 
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: #f8fafc;
     color: #0f172a;
@@ -40,8 +48,21 @@
   background: #94a3b8;
 }
 
+/* Hide scrollbar for clean horizontal pill bars on mobile */
+.scrollbar-none,
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Touch friendly minimums */
 .touch-target {
   min-height: 44px;
   min-width: 44px;
 }
+

@@ -169,7 +169,7 @@ export function BottomNav({ user, onOpenChangePassword }: BottomNavProps) {
       )}
 
       {/* Sticky Bottom Bar for Mobile Viewports */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-1 shadow-lg pb-[env(safe-area-inset-bottom,0.5rem)]">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-1 sm:px-2 py-1 shadow-lg pb-[env(safe-area-inset-bottom,0.5rem)]">
         <div className="flex items-center justify-around max-w-lg mx-auto">
           {mainNavItems.map((item) => {
             const isActive = pathname === item.href;
@@ -179,7 +179,7 @@ export function BottomNav({ user, onOpenChangePassword }: BottomNavProps) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all touch-target select-none",
+                  "flex-1 flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2.5 rounded-2xl transition-all touch-target select-none min-w-0",
                   isActive
                     ? "text-amber-600 font-bold scale-105"
                     : "text-slate-500 hover:text-slate-900 active:scale-95"
@@ -191,9 +191,11 @@ export function BottomNav({ user, onOpenChangePassword }: BottomNavProps) {
                     isActive ? "bg-amber-50 text-amber-600" : "text-slate-500"
                   )}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon className="w-5 h-5 shrink-0" />
                 </div>
-                <span className="text-[11px] tracking-tight">{item.label}</span>
+                <span className="text-[10px] sm:text-[11px] tracking-tight truncate max-w-full">
+                  {item.label}
+                </span>
               </Link>
             );
           })}
@@ -203,16 +205,18 @@ export function BottomNav({ user, onOpenChangePassword }: BottomNavProps) {
             type="button"
             onClick={() => setIsMoreOpen(true)}
             className={cn(
-              "flex flex-col items-center justify-center py-1.5 px-3 rounded-2xl transition-all touch-target select-none text-slate-500 hover:text-slate-900 active:scale-95",
+              "flex-1 flex flex-col items-center justify-center py-1 sm:py-1.5 px-1 sm:px-2.5 rounded-2xl transition-all touch-target select-none text-slate-500 hover:text-slate-900 active:scale-95 min-w-0",
               ["/transactions", "/catalog", "/admin/users", "/returns"].includes(
                 pathname
               ) && "text-amber-600 font-bold"
             )}
           >
             <div className="p-1 rounded-xl text-slate-500">
-              <Menu className="w-5 h-5" />
+              <Menu className="w-5 h-5 shrink-0" />
             </div>
-            <span className="text-[11px] tracking-tight">More</span>
+            <span className="text-[10px] sm:text-[11px] tracking-tight truncate max-w-full">
+              More
+            </span>
           </button>
         </div>
       </nav>

@@ -95,21 +95,21 @@ export function ItemCombobox({
           !selectedItem && "text-slate-400"
         )}
       >
-        <div className="flex-1 min-w-0 pr-2">
+        <div className="flex-1 min-w-0 pr-1 sm:pr-2">
           {selectedItem ? (
             <div>
               <div className="font-semibold text-slate-900 text-sm sm:text-base truncate">
                 {selectedItem.name}
               </div>
-              <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 font-medium text-slate-600 uppercase text-[10px]">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-0.5 text-[11px] sm:text-xs text-slate-500">
+                <span className="px-1.5 py-0.5 rounded-md bg-slate-100 font-medium text-slate-600 uppercase text-[10px] shrink-0">
                   {selectedItem.category.replace("_", " ")}
                 </span>
-                <span>• Unit: {selectedItem.unit}</span>
+                <span className="shrink-0">• Unit: {selectedItem.unit}</span>
                 {locationFocus && (
                   <span
                     className={cn(
-                      "font-semibold",
+                      "font-semibold shrink-0",
                       (locationFocus === "GODOWN"
                         ? selectedItem.godownQty
                         : selectedItem.officeQty) > 0
@@ -129,7 +129,7 @@ export function ItemCombobox({
               </div>
             </div>
           ) : (
-            <span className="text-sm">Search by item name, model, or code...</span>
+            <span className="text-xs sm:text-sm">Search by item name, model, or code...</span>
           )}
         </div>
         <ChevronDown
@@ -246,12 +246,12 @@ export function ItemCombobox({
                           {item.unit}
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
-                        <span>{item.category.replace("_", " ")}</span>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-0.5 text-[11px] sm:text-xs text-slate-500">
+                        <span className="shrink-0">{item.category.replace("_", " ")}</span>
                         {locationFocus && (
                           <span
                             className={cn(
-                              "font-medium",
+                              "font-medium shrink-0",
                               (relevantQty ?? 0) > 0
                                 ? "text-emerald-600"
                                 : "text-rose-500"

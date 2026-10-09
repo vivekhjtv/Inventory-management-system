@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppSidebar } from "./AppSidebar";
 import { BottomNav } from "./BottomNav";
@@ -16,16 +16,36 @@ interface AppShellProps {
   children: React.ReactNode;
 }
 
+const SHORT_ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Admin",
+  OPERATIONS_MANAGER: "Ops",
+  GODOWN_MANAGER: "Godown",
+  OFFICE_MANAGER: "Office",
+  WORKER: "Tech",
+};
+
 export function AppShell({ user, children }: AppShellProps) {
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+
+  // Invalidate bfcache on back navigation if user signed out
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        window.location.reload();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
   const roleInfo = ROLE_DETAILS[user.role] || {
     label: user.role,
     badgeColor: "bg-slate-100 text-slate-800",
   };
+  const roleShort = SHORT_ROLE_LABELS[user.role] || roleInfo.label.split(" ")[0];
   const perms = getRolePermissions(user.role, user.status);
 
   return (
-    <div className="flex min-h-screen bg-slate-50/60 font-sans text-slate-900">
+    <div className="flex min-h-screen bg-slate-50/60 font-sans text-slate-900 w-full max-w-full overflow-x-hidden">
       {/* Desktop Sidebar */}
       <AppSidebar
         user={user}
@@ -33,45 +53,45 @@ export function AppShell({ user, children }: AppShellProps) {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
         {/* Mobile Top App Bar */}
-        <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-2.5 flex items-center justify-between shadow-2xs">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs">
+        <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 shadow-2xs">
+          <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
               <Sun className="w-4 h-4" />
             </div>
-            <div>
-              <div className="font-extrabold text-slate-900 tracking-tight text-sm">
+            <div className="min-w-0">
+              <div className="font-extrabold text-slate-900 tracking-tight text-xs sm:text-sm truncate">
                 ZAFFINE SOLAR
               </div>
-              <div className="text-[10px] text-slate-400 -mt-0.5 font-medium">
+              <div className="text-[10px] text-slate-400 -mt-0.5 font-medium truncate">
                 Stock Manager
               </div>
             </div>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span
               className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                "text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0",
                 roleInfo.badgeColor
               )}
             >
-              {roleInfo.label.split(" ")[0]}
+              {roleShort}
             </span>
             <button
               type="button"
               onClick={() => setIsChangePasswordOpen(true)}
               title="Change Password"
-              className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50"
+              className="p-1.5 text-slate-400 hover:text-amber-600 rounded-lg hover:bg-amber-50 shrink-0 touch-target flex items-center justify-center"
             >
               <KeyRound className="w-4 h-4" />
             </button>
-            <form action={logoutAction}>
+            <form action={logoutAction} className="shrink-0 flex items-center">
               <button
                 type="submit"
                 title="Sign out"
-                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50"
+                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 shrink-0 touch-target flex items-center justify-center"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -145,7 +165,7 @@ export function AppShell({ user, children }: AppShellProps) {
         </header>
 
         {/* Page Content with safe padding for mobile bottom nav */}
-        <main className="flex-1 p-4 sm:p-6 md:p-8 pb-24 md:pb-10 max-w-7xl mx-auto w-full">
+        <main className="flex-1 p-3 sm:p-6 md:p-8 pb-28 md:pb-10 max-w-7xl mx-auto w-full min-w-0">
           {children}
         </main>
       </div>

@@ -223,15 +223,15 @@ export function UsersClient({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-semibold text-slate-600">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full md:w-auto shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-amber-200/60">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-xs font-semibold text-slate-600 shrink-0">
                       Assign Role:
                     </span>
                     <select
                       id={`role-select-${u.id}`}
                       defaultValue="WORKER"
-                      className="text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 bg-white"
+                      className="flex-1 sm:flex-none text-xs font-semibold px-3 py-2 rounded-xl border border-slate-200 bg-white"
                     >
                       <option value="WORKER">Technician / Worker</option>
                       <option value="OFFICE_MANAGER">Office Manager</option>
@@ -241,29 +241,31 @@ export function UsersClient({
                     </select>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={loadingId === u.id}
-                    onClick={() => {
-                      const select = document.getElementById(
-                        `role-select-${u.id}`
-                      ) as HTMLSelectElement;
-                      handleApprove(u.id, select.value as Role);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center gap-1.5 touch-target shadow-xs"
-                  >
-                    <UserCheck className="w-4 h-4" />
-                    Approve & Activate
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <button
+                      type="button"
+                      disabled={loadingId === u.id}
+                      onClick={() => {
+                        const select = document.getElementById(
+                          `role-select-${u.id}`
+                        ) as HTMLSelectElement;
+                        handleApprove(u.id, select.value as Role);
+                      }}
+                      className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 touch-target shadow-xs"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Approve & Activate</span>
+                    </button>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(u.id)}
-                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors"
-                    title="Reject and delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(u.id)}
+                      className="p-2.5 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-rose-200 touch-target flex items-center justify-center shrink-0"
+                      title="Reject and delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -272,7 +274,7 @@ export function UsersClient({
       </div>
 
       {/* ACTIVE & SUSPENDED USERS */}
-      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden space-y-4 p-5">
+      <div className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden space-y-4 p-4 sm:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h3 className="font-extrabold text-slate-900 text-base flex items-center gap-2">
             <Users className="w-5 h-5 text-purple-600" />
@@ -286,12 +288,116 @@ export function UsersClient({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search user by name or email..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-500"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-purple-500"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile View: Cards */}
+        <div className="md:hidden space-y-3">
+          {activeOrSuspendedUsers.length === 0 ? (
+            <div className="p-6 text-center text-slate-400 text-sm">
+              No matching users found.
+            </div>
+          ) : (
+            activeOrSuspendedUsers.map((u) => {
+              const isCurrentAdmin = u.id === currentAdminId;
+              const roleInfo = ROLE_DETAILS[u.role] || {
+                label: u.role,
+                badgeColor: "bg-slate-100 text-slate-800",
+              };
+
+              return (
+                <div
+                  key={u.id}
+                  className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-base text-slate-900 truncate">
+                        {u.fullName} {isCurrentAdmin && "(You)"}
+                      </div>
+                      <div className="text-xs text-slate-500 truncate mt-0.5">
+                        {u.email}
+                      </div>
+                      {u.phoneNumber && (
+                        <div className="text-[11px] text-slate-400">
+                          {u.phoneNumber}
+                        </div>
+                      )}
+                    </div>
+                    <span
+                      className={cn(
+                        "px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 border",
+                        u.status === "ACTIVE"
+                          ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+                          : "bg-rose-100 text-rose-800 border-rose-200"
+                      )}
+                    >
+                      {u.status}
+                    </span>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-400">Role:</span>
+                      {isCurrentAdmin ? (
+                        <span className={cn("px-2 py-0.5 rounded-lg text-xs font-bold border", roleInfo.badgeColor)}>
+                          {roleInfo.label}
+                        </span>
+                      ) : (
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u.id, e.target.value as Role)}
+                          className="px-2 py-1 rounded-lg border border-slate-200 bg-white font-semibold text-xs text-slate-800 focus:outline-none focus:border-purple-500"
+                        >
+                          <option value="WORKER">Technician / Worker</option>
+                          <option value="OFFICE_MANAGER">Office Manager</option>
+                          <option value="GODOWN_MANAGER">Godown Manager</option>
+                          <option value="OPERATIONS_MANAGER">Operations Manager</option>
+                          <option value="SUPER_ADMIN">Super Admin</option>
+                        </select>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs text-slate-500">
+                      <span>Activity:</span>
+                      <span className="font-semibold text-slate-700">{u.transactionCount} transactions</span>
+                    </div>
+
+                    {!isCurrentAdmin && (
+                      <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                        <button
+                          type="button"
+                          onClick={() => handleStatusToggle(u.id, u.status)}
+                          className={cn(
+                            "flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-colors touch-target flex items-center justify-center",
+                            u.status === "ACTIVE"
+                              ? "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
+                          )}
+                        >
+                          {u.status === "ACTIVE" ? "Suspend Account" : "Activate Account"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(u.id)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition-colors border border-rose-200 touch-target flex items-center justify-center"
+                          title="Delete user"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 font-bold uppercase text-xs">
               <tr>
