@@ -133,7 +133,7 @@ export function AppSidebar({ user, onOpenChangePassword }: AppSidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col w-80 bg-white border-r border-slate-200/90 h-screen sticky top-0 shrink-0 select-none shadow-xs">
+    <aside className="hidden md:flex flex-col w-80 bg-white border-r border-slate-200/90 h-full shrink-0 select-none shadow-xs">
       {/* Brand Header - Exact h-[72px] matching top navbar */}
       <div className="h-[72px] px-6 border-b border-slate-200/90 bg-white flex items-center">
         <Link href="/dashboard" className="flex items-center gap-3.5 group">
@@ -143,10 +143,10 @@ export function AppSidebar({ user, onOpenChangePassword }: AppSidebarProps) {
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <span className="font-black text-slate-900 tracking-tight text-lg">
-                ZAFFINE
+                JAFFINE
               </span>
               <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-700">
-                SOLAR
+                ENTERPRISE
               </span>
             </div>
             <p className="text-xs text-slate-400 font-medium tracking-tight">
@@ -238,7 +238,7 @@ export function AppSidebar({ user, onOpenChangePassword }: AppSidebarProps) {
       </div>
 
       {/* User Profile Card at Bottom */}
-      <div className="p-4 border-t border-slate-100/90 bg-slate-50/70">
+      <div className="p-4 border-t border-slate-100/90 bg-slate-50/70 shrink-0">
         <div className="flex items-center justify-between gap-3 p-2.5 rounded-2xl bg-white border border-slate-200/90 shadow-2xs">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-extrabold text-slate-900 truncate">

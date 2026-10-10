@@ -58,7 +58,7 @@ export function LoginFormClient() {
           </div>
         </div>
         <h2 className="mt-3 text-center text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-          ZAFFINE SOLAR
+          JAFFINE ENTERPRISE
         </h2>
         <p className="mt-1 text-center text-xs sm:text-sm text-slate-500 font-medium">
           Stock & Inventory Management System
@@ -84,7 +84,7 @@ export function LoginFormClient() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@zaffine.com"
+                placeholder="admin@jaffine.com"
                 className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               />
             </div>
@@ -113,7 +113,7 @@ export function LoginFormClient() {
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
-                  <span>Sign In to Zaffine</span>
+                  <span>Sign In to Jaffine Enterprise</span>
                 </>
               )}
             </button>

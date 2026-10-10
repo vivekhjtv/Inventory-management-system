@@ -22,9 +22,11 @@ import {
   Check,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { AutocompleteInput } from "@/components/common/AutocompleteInput";
 
 interface InwardFormClientProps {
   items: CatalogItemOption[];
+  existingVendors?: string[];
 }
 
 interface StagedInwardItem {
@@ -32,7 +34,10 @@ interface StagedInwardItem {
   quantity: number;
 }
 
-export function InwardFormClient({ items: initialItems }: InwardFormClientProps) {
+export function InwardFormClient({
+  items: initialItems,
+  existingVendors = [],
+}: InwardFormClientProps) {
   const router = useRouter();
   const [catalogItems, setCatalogItems] = useState<CatalogItemOption[]>(initialItems);
   const [activeTab, setActiveTab] = useState<"batch" | "single">("batch");
@@ -387,12 +392,13 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                   Supplier / Vendor Name
                 </label>
-                <input
-                  type="text"
+                <AutocompleteInput
                   value={batchVendorName}
-                  onChange={(e) => setBatchVendorName(e.target.value)}
+                  onChange={setBatchVendorName}
+                  options={existingVendors}
                   placeholder="e.g. Adani Solar / Waaree / Polycab"
-                  className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                  dropdownTitle="Saved Suppliers / Vendors"
+                  inputClassName="focus:border-emerald-500 focus:ring-emerald-500 py-3"
                 />
               </div>
 
@@ -637,12 +643,13 @@ export function InwardFormClient({ items: initialItems }: InwardFormClientProps)
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
                 Supplier / Vendor Name
               </label>
-              <input
-                type="text"
+              <AutocompleteInput
                 value={vendorName}
-                onChange={(e) => setVendorName(e.target.value)}
+                onChange={setVendorName}
+                options={existingVendors}
                 placeholder="e.g. Adani Solar / Waaree / Polycab"
-                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                dropdownTitle="Saved Suppliers / Vendors"
+                inputClassName="focus:border-amber-500 focus:ring-amber-500 py-3"
               />
             </div>
 

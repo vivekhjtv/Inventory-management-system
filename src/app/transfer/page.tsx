@@ -16,12 +16,19 @@ export default async function TransferPage() {
     redirect("/dashboard?error=unauthorized_transfer");
   }
 
-  const items = await prisma.item.findMany({
-    include: {
-      balances: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  const [items, workers] = await Promise.all([
+    prisma.item.findMany({
+      include: {
+        balances: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.user.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, fullName: true, role: true },
+      orderBy: { fullName: "asc" },
+    }),
+  ]);
 
   const formattedItems = items.map((item) => {
     const godown = item.balances.find((b) => b.location === "GODOWN")?.quantity ?? 0;
@@ -39,7 +46,11 @@ export default async function TransferPage() {
 
   return (
     <AppShell user={user}>
-      <TransferFormClient items={formattedItems} />
+      <TransferFormClient
+        items={formattedItems}
+        workers={workers}
+        currentUser={user}
+      />
     </AppShell>
   );
 }

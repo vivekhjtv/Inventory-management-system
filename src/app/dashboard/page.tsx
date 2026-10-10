@@ -141,12 +141,15 @@ export default async function DashboardPage({ searchParams }: DashboardPageProps
     totalDispatchedQty += t.quantity || 0;
     return {
       id: t.id,
+      batchId: t.batchId || null,
       itemId: t.itemId,
       itemName: t.item?.name || "Unknown Item",
       category: t.item?.category || "OTHER",
       unit: t.item?.unit || "NOS",
       quantity: t.quantity || 0,
       siteOrCustomer: t.siteOrCustomer || "Unspecified Site",
+      customerPhone: t.customerPhone || null,
+      customerAddress: t.customerAddress || null,
       workerName: t.worker?.fullName || null,
       dispatchedByName: t.createdByUser?.fullName || "System Admin",
       referenceDocNo: t.referenceDocNo,

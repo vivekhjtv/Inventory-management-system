@@ -45,15 +45,15 @@ export function AppShell({ user, children }: AppShellProps) {
   const perms = getRolePermissions(user.role, user.status);
 
   return (
-    <div className="flex min-h-screen bg-slate-50/60 font-sans text-slate-900 w-full max-w-full overflow-x-hidden">
+    <div className="flex h-screen h-dvh w-full overflow-hidden bg-slate-50/60 font-sans text-slate-900">
       {/* Desktop Sidebar */}
       <AppSidebar
         user={user}
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 w-full max-w-full overflow-x-hidden">
+      {/* Main Content Area - Scrollable with its own viewport-anchored scrollbar */}
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-y-auto overflow-x-hidden">
         {/* Mobile Top App Bar */}
         <header className="md:hidden sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-3 sm:px-4 py-2.5 flex items-center justify-between gap-2 shadow-2xs">
           <Link href="/dashboard" className="flex items-center gap-2 min-w-0">
@@ -62,7 +62,7 @@ export function AppShell({ user, children }: AppShellProps) {
             </div>
             <div className="min-w-0">
               <div className="font-extrabold text-slate-900 tracking-tight text-xs sm:text-sm truncate">
-                ZAFFINE SOLAR
+                JAFFINE ENTERPRISE
               </div>
               <div className="text-[10px] text-slate-400 -mt-0.5 font-medium truncate">
                 Stock Manager
@@ -100,7 +100,7 @@ export function AppShell({ user, children }: AppShellProps) {
         </header>
 
         {/* Desktop Top Header Bar - Exact h-[72px] to match sidebar header */}
-        <header className="hidden md:flex h-[72px] items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20">
+        <header className="hidden md:flex h-[72px] items-center justify-between px-8 bg-white/95 backdrop-blur-md border-b border-slate-200/90 sticky top-0 z-20 shrink-0">
           <div>
             <h1 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
               Solar Inventory Hub

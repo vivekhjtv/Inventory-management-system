@@ -348,7 +348,7 @@ export function DashboardView({
           Remarks: d.remarks || "",
         }));
         exportToCSV(
-          `zaffine_site_dispatches_log_${new Date().toISOString().slice(0, 10)}`,
+          `jaffine_site_dispatches_log_${new Date().toISOString().slice(0, 10)}`,
           rows
         );
       } else {
@@ -366,7 +366,7 @@ export function DashboardView({
             : "-",
         }));
         exportToCSV(
-          `zaffine_dispatches_summary_by_item_${new Date().toISOString().slice(0, 10)}`,
+          `jaffine_dispatches_summary_by_item_${new Date().toISOString().slice(0, 10)}`,
           rows
         );
       }
@@ -406,7 +406,7 @@ export function DashboardView({
       };
     });
     exportToCSV(
-      `zaffine_${activeLocation.toLowerCase()}_stock_${new Date().toISOString().slice(0, 10)}`,
+      `jaffine_${activeLocation.toLowerCase()}_stock_${new Date().toISOString().slice(0, 10)}`,
       rows
     );
   };
@@ -437,118 +437,99 @@ export function DashboardView({
   }, [totalPages, safeCurrentPage]);
 
   return (
-    <div className="space-y-6">
-      {/* Welcome Banner */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent p-5 sm:p-6 rounded-3xl border border-amber-500/20 shadow-xs">
-        <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-          Welcome back, {user.fullName}! 👋
-        </h2>
-        <p className="text-xs sm:text-sm text-slate-600 mt-1">
-          Real-time solar stock tracking across Godown Warehouse, Office Hub & Customer Installation Sites.
-        </p>
-      </div>
-
+    <div className="space-y-4">
       {/* KPI METRIC CARDS - ALL 5 CORE LIFECYCLE STAGES */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
         {/* 1. Godown Stock */}
         <div
           onClick={() => setActiveLocation("GODOWN")}
           className={cn(
-            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-2.5 sm:p-3 rounded-xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "GODOWN"
               ? "bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/30"
               : "bg-white border-slate-200/90 hover:border-amber-300"
           )}
         >
-          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1 min-w-0">
             <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
-              <Warehouse className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
+              <Warehouse className="w-3.5 h-3.5 text-amber-500 shrink-0" />
               <span className="truncate">Godown</span>
             </span>
-            <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-amber-200 shrink-0">
+            <span className="text-[9px] sm:text-[10px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded-md border border-amber-200 shrink-0">
               Main
             </span>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalGodownStock)}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-amber-700/80 mt-1 font-semibold truncate">
-            {activeLocation === "GODOWN" ? "● Active View" : "View Godown"}
-          </p>
-          <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-amber-500/5 rounded-full pointer-events-none" />
+          <div className="absolute -right-2 -bottom-2 w-10 h-10 bg-amber-500/5 rounded-full pointer-events-none" />
         </div>
 
         {/* 2. Office Stock */}
         <div
           onClick={() => setActiveLocation("OFFICE")}
           className={cn(
-            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-2.5 sm:p-3 rounded-xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "OFFICE"
               ? "bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/30"
               : "bg-white border-slate-200/90 hover:border-blue-300"
           )}
         >
-          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1 min-w-0">
             <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
-              <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-500 shrink-0" />
+              <Building2 className="w-3.5 h-3.5 text-blue-500 shrink-0" />
               <span className="truncate">Office Stock</span>
             </span>
-            <span className="text-[9px] sm:text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-blue-200 shrink-0">
+            <span className="text-[9px] sm:text-[10px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded-md border border-blue-200 shrink-0">
               Staging
             </span>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalOfficeStock)}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-blue-700/80 mt-1 font-semibold truncate">
-            {activeLocation === "OFFICE" ? "● Active View" : "View Office"}
-          </p>
-          <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-blue-500/5 rounded-full pointer-events-none" />
+          <div className="absolute -right-2 -bottom-2 w-10 h-10 bg-blue-500/5 rounded-full pointer-events-none" />
         </div>
 
         {/* 3. Dispatched to Sites */}
         <div
           onClick={() => setActiveLocation("DISPATCH")}
           className={cn(
-            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
+            "p-2.5 sm:p-3 rounded-xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all",
             activeLocation === "DISPATCH"
               ? "bg-purple-500/10 border-purple-500 ring-2 ring-purple-500/30"
               : "bg-white border-slate-200/90 hover:border-purple-300"
           )}
         >
-          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1 min-w-0">
             <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
-              <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 shrink-0" />
+              <Truck className="w-3.5 h-3.5 text-purple-600 shrink-0" />
               <span className="truncate">Dispatches</span>
             </span>
-            <span className="text-[9px] sm:text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-purple-200 shrink-0">
+            <span className="text-[9px] sm:text-[10px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded-md border border-purple-200 shrink-0">
               {stats.totalDispatchesCount ?? dispatches.length} Jobs
             </span>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tight font-mono">
             {formatNumber(stats.totalDispatchedQty ?? 0)}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-purple-700/80 mt-1 font-semibold truncate">
-            {activeLocation === "DISPATCH" ? "● Active View" : "View Dispatches"}
-          </p>
-          <div className="absolute -right-3 -bottom-3 w-16 h-16 bg-purple-500/5 rounded-full pointer-events-none" />
+          <div className="absolute -right-2 -bottom-2 w-10 h-10 bg-purple-500/5 rounded-full pointer-events-none" />
         </div>
 
         {/* 4. Low Stock Alerts */}
         <div
           onClick={() => setOnlyLowStock(!onlyLowStock)}
           className={cn(
-            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs cursor-pointer transition-all relative overflow-hidden",
+            "p-2.5 sm:p-3 rounded-xl border shadow-2xs cursor-pointer transition-all relative overflow-hidden",
             stats.lowStockCount > 0
               ? "bg-rose-50/70 border-rose-200 hover:bg-rose-50 text-rose-900"
               : "bg-white border-slate-200/90 text-slate-900"
           )}
         >
-          <div className="flex items-center justify-between gap-1 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-[11px] sm:text-xs font-bold mb-1 min-w-0">
             <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
               <AlertTriangle
                 className={cn(
-                  "w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0",
+                  "w-3.5 h-3.5 shrink-0",
                   stats.lowStockCount > 0 ? "text-rose-600" : "text-slate-400"
                 )}
               />
@@ -556,7 +537,7 @@ export function DashboardView({
             </span>
             <span
               className={cn(
-                "text-[9px] sm:text-[10px] font-bold px-1.5 sm:px-2 py-0.5 rounded-md border shrink-0",
+                "text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md border shrink-0",
                 onlyLowStock
                   ? "bg-rose-600 text-white border-rose-600"
                   : "bg-rose-100 text-rose-800 border-rose-200"
@@ -565,165 +546,136 @@ export function DashboardView({
               {onlyLowStock ? "Filtered" : "Filter"}
             </span>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight font-mono">
+          <div className="text-lg sm:text-xl lg:text-2xl font-black tracking-tight font-mono">
             {stats.lowStockCount}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 font-medium truncate">
-            {onlyLowStock ? "Viewing filtered" : "Near threshold"}
-          </p>
         </div>
 
         {/* 5. Catalog Items */}
         <div
           onClick={() => setActiveLocation("ALL")}
           className={cn(
-            "p-3.5 sm:p-5 rounded-2xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all col-span-2 sm:col-span-1",
+            "p-2.5 sm:p-3 rounded-xl border shadow-2xs relative overflow-hidden cursor-pointer transition-all col-span-2 sm:col-span-1",
             activeLocation === "ALL"
               ? "bg-emerald-500/10 border-emerald-500 ring-2 ring-emerald-500/30"
               : "bg-white border-slate-200/90 hover:border-emerald-300"
           )}
         >
-          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1.5 sm:mb-2 min-w-0">
+          <div className="flex items-center justify-between gap-1 text-slate-500 text-[11px] sm:text-xs font-bold mb-1 min-w-0">
             <span className="flex items-center gap-1 sm:gap-1.5 min-w-0 truncate">
-              <Boxes className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500 shrink-0" />
+              <Boxes className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
               <span className="truncate">Catalog Items</span>
             </span>
-            <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 sm:px-2 py-0.5 rounded-md border border-emerald-200/50 shrink-0">
+            <span className="text-[9px] sm:text-[10px] bg-emerald-50 text-emerald-700 font-bold px-1.5 py-0.5 rounded-md border border-emerald-200/50 shrink-0">
               {stats.totalItems} Models
             </span>
           </div>
-          <div className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight font-mono">
+          <div className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 tracking-tight font-mono">
             {stats.totalItems}
           </div>
-          <p className="text-[10px] sm:text-[11px] text-emerald-700/80 mt-1 font-semibold truncate">
-            {activeLocation === "ALL" ? "● Active View" : "View Catalog"}
-          </p>
         </div>
       </div>
 
-      {/* DISTINCT 4-WAY LOCATION TAB SWITCHER */}
-      <div className="bg-slate-200/70 p-1.5 rounded-2xl grid grid-cols-2 md:flex md:flex-row gap-1.5 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => setActiveLocation("ALL")}
-          className={cn(
-            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
-            activeLocation === "ALL"
-              ? "bg-white text-slate-900 shadow-sm"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          )}
-        >
-          <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
-          <span className="truncate">All Facilities</span>
-        </button>
+      {/* UNIFIED CONTROLS: LOCATIONS, SEARCH, CATEGORIES, EXPORT */}
+      <div className="bg-white p-2.5 sm:p-3 rounded-2xl border border-slate-200/90 shadow-2xs space-y-2 sm:space-y-2.5">
+        {/* Top Controls: Location Tabs + Export Action */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          {/* Facility Tabs */}
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl overflow-x-auto scrollbar-none w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setActiveLocation("ALL")}
+              className={cn(
+                "py-1.5 px-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0 whitespace-nowrap",
+                activeLocation === "ALL"
+                  ? "bg-white text-slate-900 shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Layers className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <span>All Facilities</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveLocation("GODOWN")}
-          className={cn(
-            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
-            activeLocation === "GODOWN"
-              ? "bg-amber-500 text-white shadow-sm shadow-amber-500/20"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          )}
-        >
-          <Warehouse className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          <span className="truncate">Godown</span>
-          <span
-            className={cn(
-              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
-              activeLocation === "GODOWN"
-                ? "bg-white/20 text-white"
-                : "bg-amber-100 text-amber-900"
-            )}
-          >
-            {formatNumber(stats.totalGodownStock)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveLocation("OFFICE")}
-          className={cn(
-            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
-            activeLocation === "OFFICE"
-              ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          )}
-        >
-          <Building2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          <span className="truncate">Office Hub</span>
-          <span
-            className={cn(
-              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
-              activeLocation === "OFFICE"
-                ? "bg-white/20 text-white"
-                : "bg-blue-100 text-blue-900"
-            )}
-          >
-            {formatNumber(stats.totalOfficeStock)}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveLocation("DISPATCH")}
-          className={cn(
-            "py-2.5 sm:py-3 px-2 sm:px-3 rounded-xl font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 sm:gap-2 transition-all min-w-0 text-center",
-            activeLocation === "DISPATCH"
-              ? "bg-purple-600 text-white shadow-sm shadow-purple-600/20"
-              : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
-          )}
-        >
-          <Truck className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-          <span className="truncate">Dispatched</span>
-          <span
-            className={cn(
-              "text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full font-bold shrink-0",
-              activeLocation === "DISPATCH"
-                ? "bg-white/20 text-white"
-                : "bg-purple-100 text-purple-900"
-            )}
-          >
-            {formatNumber(stats.totalDispatchedQty ?? 0)}
-          </span>
-        </button>
-      </div>
-
-      {/* FILTER & SEARCH BAR */}
-      <div className="bg-white p-3.5 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs space-y-3">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          {/* Search Box */}
-          <div className="relative flex-1">
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={
-                activeLocation === "DISPATCH"
-                  ? "Search by item name, site, customer, technician, or doc no..."
-                  : "Search solar model, category, or brand..."
-              }
-              className="w-full pl-9 pr-14 py-2.5 rounded-xl border border-slate-200 bg-slate-50/50 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
-            />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-600"
+            <button
+              type="button"
+              onClick={() => setActiveLocation("GODOWN")}
+              className={cn(
+                "py-1.5 px-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0 whitespace-nowrap",
+                activeLocation === "GODOWN"
+                  ? "bg-amber-500 text-white shadow-2xs shadow-amber-500/20"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Warehouse className="w-3.5 h-3.5 shrink-0" />
+              <span>Godown</span>
+              <span
+                className={cn(
+                  "text-[9px] px-1.5 py-0.2 rounded-full font-bold",
+                  activeLocation === "GODOWN"
+                    ? "bg-white/25 text-white"
+                    : "bg-amber-100 text-amber-900"
+                )}
               >
-                Clear
-              </button>
-            )}
+                {formatNumber(stats.totalGodownStock)}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveLocation("OFFICE")}
+              className={cn(
+                "py-1.5 px-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0 whitespace-nowrap",
+                activeLocation === "OFFICE"
+                  ? "bg-blue-600 text-white shadow-2xs shadow-blue-600/20"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Building2 className="w-3.5 h-3.5 shrink-0" />
+              <span>Office Hub</span>
+              <span
+                className={cn(
+                  "text-[9px] px-1.5 py-0.2 rounded-full font-bold",
+                  activeLocation === "OFFICE"
+                    ? "bg-white/25 text-white"
+                    : "bg-blue-100 text-blue-900"
+                )}
+              >
+                {formatNumber(stats.totalOfficeStock)}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveLocation("DISPATCH")}
+              className={cn(
+                "py-1.5 px-2.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition-all shrink-0 whitespace-nowrap",
+                activeLocation === "DISPATCH"
+                  ? "bg-purple-600 text-white shadow-2xs shadow-purple-600/20"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/50"
+              )}
+            >
+              <Truck className="w-3.5 h-3.5 shrink-0" />
+              <span>Dispatched</span>
+              <span
+                className={cn(
+                  "text-[9px] px-1.5 py-0.2 rounded-full font-bold",
+                  activeLocation === "DISPATCH"
+                    ? "bg-white/25 text-white"
+                    : "bg-purple-100 text-purple-900"
+                )}
+              >
+                {formatNumber(stats.totalDispatchedQty ?? 0)}
+              </span>
+            </button>
           </div>
 
-          {/* Export CSV */}
-          <div className="flex items-center gap-2">
+          {/* Export CSV button */}
+          <div className="flex items-center shrink-0 self-end sm:self-auto">
             <button
               type="button"
               onClick={handleExportCSV}
-              className="w-full sm:w-auto px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors touch-target"
+              className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold flex items-center gap-1.5 shadow-2xs transition-colors"
+              title="Export CSV"
             >
               <Download className="w-3.5 h-3.5 text-slate-500" />
               <span>Export CSV</span>
@@ -731,38 +683,66 @@ export function DashboardView({
           </div>
         </div>
 
-        {/* Category Pills Filter */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 scrollbar-none text-xs">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory("ALL")}
-            className={cn(
-              "px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all touch-target min-h-[36px] shrink-0",
-              selectedCategory === "ALL"
-                ? "bg-slate-900 text-white shadow-2xs"
-                : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
-            )}
-          >
-            All Categories
-          </button>
-          {CATEGORIES.map((cat) => {
-            const isSelected = selectedCategory === cat.key;
-            return (
+        {/* Search Bar + Categories */}
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-2 pt-1 border-t border-slate-100">
+          {/* Search Box */}
+          <div className="relative md:w-80 lg:w-96 shrink-0">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={
+                activeLocation === "DISPATCH"
+                  ? "Search item, site, technician, doc no..."
+                  : "Search solar model, category, brand..."
+              }
+              className="w-full pl-8 pr-12 py-1.5 rounded-lg border border-slate-200 bg-slate-50/70 text-xs sm:text-sm focus:outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-500/20 transition-all font-medium"
+            />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            {search && (
               <button
-                key={cat.key}
                 type="button"
-                onClick={() => setSelectedCategory(cat.key)}
-                className={cn(
-                  "px-3.5 py-1.5 rounded-xl font-bold whitespace-nowrap transition-all touch-target min-h-[36px] shrink-0",
-                  isSelected
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
-                )}
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[11px] font-bold text-slate-400 hover:text-slate-600"
               >
-                {cat.label}
+                Clear
               </button>
-            );
-          })}
+            )}
+          </div>
+
+          {/* Category Pills Filter */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-xs flex-1 min-w-0">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory("ALL")}
+              className={cn(
+                "px-2.5 py-1 rounded-lg font-bold text-xs whitespace-nowrap transition-all shrink-0",
+                selectedCategory === "ALL"
+                  ? "bg-slate-900 text-white shadow-2xs"
+                  : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
+              )}
+            >
+              All Categories
+            </button>
+            {CATEGORIES.map((cat) => {
+              const isSelected = selectedCategory === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat.key)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-lg font-bold text-xs whitespace-nowrap transition-all shrink-0",
+                    isSelected
+                      ? "bg-slate-900 text-white shadow-2xs"
+                      : "bg-slate-100 hover:bg-slate-200/80 text-slate-600"
+                  )}
+                >
+                  {cat.label}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
 

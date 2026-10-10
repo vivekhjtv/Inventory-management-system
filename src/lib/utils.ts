@@ -14,11 +14,16 @@ export function formatNumber(val: number | null | undefined): string {
 
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return "-";
-  const d = new Date(date);
-  return new Intl.DateTimeFormat("en-IN", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(d);
+  try {
+    const d = new Date(date);
+    if (isNaN(d.getTime())) return "-";
+    return new Intl.DateTimeFormat("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(d);
+  } catch {
+    return "-";
+  }
 }
 
 export function exportToCSV(filename: string, rows: Record<string, any>[]) {

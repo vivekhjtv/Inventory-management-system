@@ -4,6 +4,7 @@ import { getRolePermissions } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { InwardFormClient } from "./InwardFormClient";
+import { getAutocompleteData } from "@/actions/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -16,13 +17,16 @@ export default async function InwardPage() {
     redirect("/dashboard?error=unauthorized_inward");
   }
 
-  // Fetch items with balances for combobox
-  const items = await prisma.item.findMany({
-    include: {
-      balances: true,
-    },
-    orderBy: { name: "asc" },
-  });
+  // Fetch items with balances for combobox and vendor auto-suggestions
+  const [items, autocompleteData] = await Promise.all([
+    prisma.item.findMany({
+      include: {
+        balances: true,
+      },
+      orderBy: { name: "asc" },
+    }),
+    getAutocompleteData(),
+  ]);
 
   const formattedItems = items.map((item) => {
     const godown = item.balances.find((b) => b.location === "GODOWN")?.quantity ?? 0;
@@ -40,7 +44,10 @@ export default async function InwardPage() {
 
   return (
     <AppShell user={user}>
-      <InwardFormClient items={formattedItems} />
+      <InwardFormClient
+        items={formattedItems}
+        existingVendors={autocompleteData.vendors}
+      />
     </AppShell>
   );
 }

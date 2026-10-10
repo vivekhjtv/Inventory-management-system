@@ -5,6 +5,11 @@ import { getVerifiedUser } from "@/lib/auth";
 import { getRolePermissions } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
+const TRANSACTION_CONFIG = {
+  maxWait: 20000, // 20 seconds maximum wait time to acquire connection
+  timeout: 60000, // 60 seconds timeout for interactive transaction
+};
+
 export async function getLiveBalance(itemId: string, location: "GODOWN" | "OFFICE") {
   const balance = await prisma.stockBalance.findUnique({
     where: {
@@ -78,6 +83,7 @@ export async function inwardStock(payload: {
           fromLocation: vendorName || "VENDOR",
           toLocation: "GODOWN",
           createdByUserId: user.id,
+          siteOrCustomer: vendorName || null,
           referenceDocNo: docNo || null,
           remarks: fullRemarks || null,
         },
@@ -87,7 +93,7 @@ export async function inwardStock(payload: {
       });
 
       return { balance, transaction };
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/inward");
@@ -196,7 +202,7 @@ export async function transferStock(payload: {
       });
 
       return { updatedGodown, updatedOffice, transaction };
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/transfer");
@@ -217,22 +223,31 @@ export async function dispatchToSite(payload: {
   itemId: string;
   quantity: number;
   siteOrCustomer: string;
+  customerPhone?: string;
+  customerAddress?: string;
   workerId?: string;
   docNo?: string;
   remarks?: string;
+  fromLocation?: "OFFICE" | "GODOWN";
 }) {
   const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
+  const originLocation: "OFFICE" | "GODOWN" = payload.fromLocation === "GODOWN" ? "GODOWN" : "OFFICE";
+
   const perms = getRolePermissions(user.role, user.status);
-  if (!perms.canDispatchToSite) {
+  const isAuthorized = originLocation === "GODOWN"
+    ? (perms.canDispatchToSite || perms.canTransferToOffice)
+    : perms.canDispatchToSite;
+
+  if (!isAuthorized) {
     return {
       success: false,
-      error: `Your role (${user.role}) is not authorized to dispatch stock to installation sites.`,
+      error: `Your role (${user.role}) is not authorized to dispatch stock from ${originLocation === "GODOWN" ? "Godown" : "Office"}.`,
     };
   }
 
-  const { itemId, quantity, siteOrCustomer, workerId, docNo, remarks } = payload;
+  const { itemId, quantity, siteOrCustomer, customerPhone, customerAddress, workerId, docNo, remarks } = payload;
   const numQty = Number(quantity);
 
   if (!itemId || isNaN(numQty) || numQty <= 0) {
@@ -245,30 +260,30 @@ export async function dispatchToSite(payload: {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Check Office balance
-      const officeBalance = await tx.stockBalance.findUnique({
+      // 1. Check origin balance
+      const originBalance = await tx.stockBalance.findUnique({
         where: {
           itemId_location: {
             itemId,
-            location: "OFFICE",
+            location: originLocation,
           },
         },
         include: { item: true },
       });
 
-      const currentOfficeQty = officeBalance?.quantity ?? 0;
-      if (currentOfficeQty < numQty) {
+      const currentOriginQty = originBalance?.quantity ?? 0;
+      if (currentOriginQty < numQty) {
         throw new Error(
-          `Insufficient Office stock for ${officeBalance?.item.name || "Item"}. Available: ${currentOfficeQty}, Requested: ${numQty}`
+          `Insufficient ${originLocation === "GODOWN" ? "Godown" : "Office"} stock for ${originBalance?.item.name || "Item"}. Available: ${currentOriginQty}, Requested: ${numQty}`
         );
       }
 
-      // 2. Decrement Office
-      const updatedOffice = await tx.stockBalance.update({
+      // 2. Decrement origin balance
+      const updatedBalance = await tx.stockBalance.update({
         where: {
           itemId_location: {
             itemId,
-            location: "OFFICE",
+            location: originLocation,
           },
         },
         data: {
@@ -282,9 +297,11 @@ export async function dispatchToSite(payload: {
           transactionType: "DISPATCH_TO_SITE",
           itemId,
           quantity: numQty,
-          fromLocation: "OFFICE",
+          fromLocation: originLocation,
           toLocation: "SITE",
           siteOrCustomer: siteOrCustomer.trim(),
+          customerPhone: customerPhone?.trim() || null,
+          customerAddress: customerAddress?.trim() || null,
           workerId: workerId || user.id, // if worker logs their own checkout
           createdByUserId: user.id,
           referenceDocNo: docNo || null,
@@ -296,16 +313,17 @@ export async function dispatchToSite(payload: {
         },
       });
 
-      return { updatedOffice, transaction };
-    });
+      return { updatedBalance, transaction, originLocation };
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/dispatch");
+    revalidatePath("/transfer");
     revalidatePath("/transactions");
     return {
       success: true,
-      message: `Dispatched ${numQty} ${result.transaction.item.unit} of ${result.transaction.item.name} for site "${siteOrCustomer}".`,
-      newOfficeBalance: result.updatedOffice.quantity,
+      message: `Dispatched ${numQty} ${result.transaction.item.unit} of ${result.transaction.item.name} from ${result.originLocation} for site "${siteOrCustomer}".`,
+      newBalance: result.updatedBalance.quantity,
     };
   } catch (error: any) {
     console.error("Dispatch error:", error);
@@ -383,7 +401,7 @@ export async function returnFromSite(payload: {
       });
 
       return { updatedOffice, transaction };
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/returns");
@@ -517,6 +535,7 @@ export async function batchInwardStock(payload: {
         .filter(Boolean)
         .join(" | ");
 
+      const batchId = `BATCH-INW-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       const processedItems = [];
 
       for (const entry of items) {
@@ -541,12 +560,14 @@ export async function batchInwardStock(payload: {
 
         const transaction = await tx.inventoryTransaction.create({
           data: {
+            batchId,
             transactionType: "INWARD_TO_GODOWN",
             itemId: entry.itemId,
             quantity: numQty,
             fromLocation: vendorName || "VENDOR",
             toLocation: "GODOWN",
             createdByUserId: user.id,
+            siteOrCustomer: vendorName || null,
             referenceDocNo: docNo || null,
             remarks: fullRemarks || null,
           },
@@ -565,7 +586,7 @@ export async function batchInwardStock(payload: {
       }
 
       return processedItems;
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/inward");
@@ -612,6 +633,7 @@ export async function batchTransferStock(payload: {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      const batchId = `BATCH-TRF-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       const processedItems = [];
 
       for (const entry of items) {
@@ -665,6 +687,7 @@ export async function batchTransferStock(payload: {
 
         const transaction = await tx.inventoryTransaction.create({
           data: {
+            batchId,
             transactionType: "TRANSFER_TO_OFFICE",
             itemId: entry.itemId,
             quantity: numQty,
@@ -690,7 +713,7 @@ export async function batchTransferStock(payload: {
       }
 
       return processedItems;
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/transfer");
@@ -708,30 +731,43 @@ export async function batchTransferStock(payload: {
 }
 
 export async function batchDispatchToSite(payload: {
-  items: Array<{ itemId: string; quantity: number }>;
+  items: Array<{ itemId: string; quantity: number; sourceLocation?: "OFFICE" | "GODOWN" }>;
   siteOrCustomer: string;
+  customerPhone?: string;
+  customerAddress?: string;
   workerId?: string;
   docNo?: string;
   remarks?: string;
+  fromLocation?: "OFFICE" | "GODOWN";
 }) {
   const user = await getVerifiedUser();
   if (!user) return { success: false, error: "Authentication required." };
 
-  const perms = getRolePermissions(user.role, user.status);
-  if (!perms.canDispatchToSite) {
-    return {
-      success: false,
-      error: `Your role (${user.role}) is not authorized to dispatch stock to installation sites.`,
-    };
-  }
-
-  const { items, siteOrCustomer, workerId, docNo, remarks } = payload;
+  const defaultOrigin: "OFFICE" | "GODOWN" = payload.fromLocation === "GODOWN" ? "GODOWN" : "OFFICE";
+  const { items, siteOrCustomer, customerPhone, customerAddress, workerId, docNo, remarks } = payload;
   if (!siteOrCustomer?.trim()) {
     return { success: false, error: "Site or Customer reference is required." };
   }
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return { success: false, error: "Please add at least one item to dispatch." };
+  }
+
+  const perms = getRolePermissions(user.role, user.status);
+  const requiresGodown = items.some((i) => (i.sourceLocation || defaultOrigin) === "GODOWN");
+  const requiresOffice = items.some((i) => (i.sourceLocation || defaultOrigin) === "OFFICE");
+
+  if (requiresGodown && !(perms.canDispatchToSite || perms.canTransferToOffice)) {
+    return {
+      success: false,
+      error: `Your role (${user.role}) is not authorized to dispatch stock from Godown Warehouse.`,
+    };
+  }
+  if (requiresOffice && !perms.canDispatchToSite) {
+    return {
+      success: false,
+      error: `Your role (${user.role}) is not authorized to dispatch stock from Office Hub.`,
+    };
   }
 
   for (const item of items) {
@@ -743,33 +779,35 @@ export async function batchDispatchToSite(payload: {
 
   try {
     const result = await prisma.$transaction(async (tx) => {
+      const batchId = `BATCH-DSP-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
       const processedItems = [];
 
       for (const entry of items) {
         const numQty = Number(entry.quantity);
+        const itemSource: "OFFICE" | "GODOWN" = entry.sourceLocation || defaultOrigin;
 
-        const officeBalance = await tx.stockBalance.findUnique({
+        const originBalance = await tx.stockBalance.findUnique({
           where: {
             itemId_location: {
               itemId: entry.itemId,
-              location: "OFFICE",
+              location: itemSource,
             },
           },
           include: { item: true },
         });
 
-        const currentOfficeQty = officeBalance?.quantity ?? 0;
-        if (currentOfficeQty < numQty) {
+        const currentOriginQty = originBalance?.quantity ?? 0;
+        if (currentOriginQty < numQty) {
           throw new Error(
-            `Insufficient Office stock for ${officeBalance?.item?.name || "Item"}. Available: ${currentOfficeQty}, Requested: ${numQty}`
+            `Insufficient ${itemSource === "GODOWN" ? "Godown" : "Office"} stock for ${originBalance?.item?.name || "Item"}. Available in ${itemSource}: ${currentOriginQty}, Requested: ${numQty}`
           );
         }
 
-        const updatedOffice = await tx.stockBalance.update({
+        const updatedOrigin = await tx.stockBalance.update({
           where: {
             itemId_location: {
               itemId: entry.itemId,
-              location: "OFFICE",
+              location: itemSource,
             },
           },
           data: {
@@ -779,12 +817,15 @@ export async function batchDispatchToSite(payload: {
 
         const transaction = await tx.inventoryTransaction.create({
           data: {
+            batchId,
             transactionType: "DISPATCH_TO_SITE",
             itemId: entry.itemId,
             quantity: numQty,
-            fromLocation: "OFFICE",
+            fromLocation: itemSource,
             toLocation: "SITE",
             siteOrCustomer: siteOrCustomer.trim(),
+            customerPhone: customerPhone?.trim() || null,
+            customerAddress: customerAddress?.trim() || null,
             workerId: workerId || user.id,
             createdByUserId: user.id,
             referenceDocNo: docNo || null,
@@ -800,15 +841,17 @@ export async function batchDispatchToSite(payload: {
           itemName: transaction.item.name,
           quantity: numQty,
           unit: transaction.item.unit,
-          newOfficeBalance: updatedOffice.quantity,
+          newBalance: updatedOrigin.quantity,
+          originLocation: itemSource,
         });
       }
 
       return processedItems;
-    });
+    }, TRANSACTION_CONFIG);
 
     revalidatePath("/dashboard");
     revalidatePath("/dispatch");
+    revalidatePath("/transfer");
     revalidatePath("/transactions");
 
     return {
@@ -821,4 +864,79 @@ export async function batchDispatchToSite(payload: {
     return { success: false, error: error.message || "Failed to process batch dispatch." };
   }
 }
+
+/**
+ * Fetch distinct vendors and customer profiles for auto-suggestions
+ */
+export async function getAutocompleteData(): Promise<{
+  vendors: string[];
+  customers: Array<{ name: string; phone?: string | null; address?: string | null }>;
+}> {
+  try {
+    const [inwardTx, dispatchTx] = await Promise.all([
+      prisma.inventoryTransaction.findMany({
+        where: { transactionType: "INWARD_TO_GODOWN" },
+        select: { fromLocation: true, remarks: true, siteOrCustomer: true },
+        take: 300,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.inventoryTransaction.findMany({
+        where: { siteOrCustomer: { not: null } },
+        select: { siteOrCustomer: true, customerPhone: true, customerAddress: true },
+        take: 300,
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const vendorsSet = new Set<string>();
+    for (const t of inwardTx) {
+      if (t.siteOrCustomer?.trim()) {
+        const v = t.siteOrCustomer.trim();
+        if (!["VENDOR", "GODOWN", "OFFICE"].includes(v.toUpperCase())) {
+          vendorsSet.add(v);
+        }
+      }
+      if (t.fromLocation && !["VENDOR", "GODOWN", "OFFICE"].includes(t.fromLocation.toUpperCase())) {
+        vendorsSet.add(t.fromLocation.trim());
+      }
+      if (t.remarks && t.remarks.includes("Vendor:")) {
+        const match = t.remarks.match(/Vendor:\s*([^|]+)/i);
+        if (match && match[1]) {
+          const v = match[1].trim();
+          if (v && !["VENDOR", "GODOWN", "OFFICE"].includes(v.toUpperCase())) {
+            vendorsSet.add(v);
+          }
+        }
+      }
+    }
+
+    const customersMap = new Map<string, { name: string; phone?: string | null; address?: string | null }>();
+    for (const d of dispatchTx) {
+      if (d.siteOrCustomer && d.siteOrCustomer.trim()) {
+        const name = d.siteOrCustomer.trim();
+        const key = name.toLowerCase();
+        const existing = customersMap.get(key);
+        if (!existing) {
+          customersMap.set(key, {
+            name,
+            phone: d.customerPhone || null,
+            address: d.customerAddress || null,
+          });
+        } else {
+          if (!existing.phone && d.customerPhone) existing.phone = d.customerPhone;
+          if (!existing.address && d.customerAddress) existing.address = d.customerAddress;
+        }
+      }
+    }
+
+    return {
+      vendors: Array.from(vendorsSet),
+      customers: Array.from(customersMap.values()),
+    };
+  } catch (error) {
+    console.error("Error fetching autocomplete data:", error);
+    return { vendors: [], customers: [] };
+  }
+}
+
 

@@ -54,7 +54,7 @@ export function RegisterFormClient() {
           Create Account
         </h2>
         <p className="mt-1 text-center text-xs sm:text-sm text-slate-500 font-medium">
-          Register for Zaffine Solar Inventory Access
+          Register for Jaffine Enterprise Inventory Access
         </p>
       </div>
 
@@ -102,7 +102,7 @@ export function RegisterFormClient() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="ramesh@zaffine.com"
+                placeholder="ramesh@jaffine.com"
                 className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
               />
             </div>

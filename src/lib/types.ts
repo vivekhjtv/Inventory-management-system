@@ -44,12 +44,15 @@ export const CATEGORIES: { key: Category; label: string; icon: string }[] = [
 
 export interface DispatchedRecord {
   id: string;
+  batchId?: string | null;
   itemId: string;
   itemName: string;
   category: string;
   unit: string;
   quantity: number;
   siteOrCustomer: string;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
   workerName: string | null;
   dispatchedByName: string;
   referenceDocNo: string | null;

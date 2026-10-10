@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ItemCombobox, CatalogItemOption } from "@/components/inventory/ItemCombobox";
@@ -19,10 +19,25 @@ import {
   Sparkles,
   ExternalLink,
   PackageCheck,
+  Warehouse,
+  Printer,
+  Phone,
+  ClipboardList,
+  X,
+  ArrowRight,
+  Package,
 } from "lucide-react";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, formatDate, cn } from "@/lib/utils";
 import { SessionUser, DispatchedRecord } from "@/lib/types";
 import { dispatchToSite, batchDispatchToSite } from "@/actions/inventory";
+import { DeliveryChallanModal, DeliveryChallanData } from "@/components/inventory/DeliveryChallanModal";
+import { StandardChallanForm } from "./StandardChallanForm";
+import {
+  singleDispatchSchema,
+  batchDispatchHeaderSchema,
+  batchStagingItemSchema,
+} from "@/lib/validation";
+import { AutocompleteInput, AutocompleteOption } from "@/components/common/AutocompleteInput";
 
 interface WorkerOption {
   id: string;
@@ -35,11 +50,37 @@ interface DispatchFormClientProps {
   workers: WorkerOption[];
   currentUser: SessionUser;
   recentDispatches?: DispatchedRecord[];
+  customerSuggestions?: Array<{ name: string; phone?: string | null; address?: string | null }>;
 }
 
 interface StagedDispatchItem {
   item: CatalogItemOption;
   quantity: number;
+  sourceLocation?: "OFFICE" | "GODOWN";
+}
+
+export interface DispatchedBatchGroup {
+  id: string;
+  isBatch: boolean;
+  batchId: string | null;
+  siteOrCustomer: string;
+  customerPhone?: string | null;
+  customerAddress?: string | null;
+  workerName: string | null;
+  dispatchedByName: string;
+  referenceDocNo: string | null;
+  remarks: string | null;
+  createdAt: string;
+  totalQuantity: number;
+  totalItems: number;
+  items: Array<{
+    id: string;
+    itemName: string;
+    category: string;
+    unit: string;
+    quantity: number;
+  }>;
+  rawRecords: DispatchedRecord[];
 }
 
 export function DispatchFormClient({
@@ -47,16 +88,28 @@ export function DispatchFormClient({
   workers,
   currentUser,
   recentDispatches = [],
+  customerSuggestions = [],
 }: DispatchFormClientProps) {
   const router = useRouter();
   const [catalogItems, setCatalogItems] = useState<CatalogItemOption[]>(initialItems);
-  const [activeTab, setActiveTab] = useState<"batch" | "single">("batch");
+  const [activeTab, setActiveTab] = useState<"challan" | "batch" | "single">("challan");
   const [stayOnPage, setStayOnPage] = useState<boolean>(true);
+
+  // Customer Autocomplete Options
+  const customerOptions: AutocompleteOption[] = useMemo(() => {
+    return customerSuggestions.map((c) => ({
+      label: c.name,
+      subLabel: [c.phone, c.address].filter(Boolean).join(" • "),
+      extraData: c,
+    }));
+  }, [customerSuggestions]);
 
   // Single Item Mode State
   const [selectedItem, setSelectedItem] = useState<CatalogItemOption | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [siteOrCustomer, setSiteOrCustomer] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
+  const [customerAddress, setCustomerAddress] = useState("");
   const [workerId, setWorkerId] = useState(
     currentUser.role === "WORKER" ? currentUser.id : workers[0]?.id || ""
   );
@@ -67,12 +120,143 @@ export function DispatchFormClient({
   const [batchItems, setBatchItems] = useState<StagedDispatchItem[]>([]);
   const [pendingItem, setPendingItem] = useState<CatalogItemOption | null>(null);
   const [pendingQty, setPendingQty] = useState<number>(1);
+  const [pendingLocation, setPendingLocation] = useState<"OFFICE" | "GODOWN">("GODOWN");
   const [batchSiteOrCustomer, setBatchSiteOrCustomer] = useState("");
+  const [batchCustomerPhone, setBatchCustomerPhone] = useState("");
+  const [batchCustomerAddress, setBatchCustomerAddress] = useState("");
   const [batchWorkerId, setBatchWorkerId] = useState(
     currentUser.role === "WORKER" ? currentUser.id : workers[0]?.id || ""
   );
   const [batchDocNo, setBatchDocNo] = useState("");
   const [batchRemarks, setBatchRemarks] = useState("");
+
+  // Validation Error States for Single & Batch Forms
+  const [singleErrors, setSingleErrors] = useState<Record<string, string>>({});
+  const [batchErrors, setBatchErrors] = useState<Record<string, string>>({});
+  const [stagingError, setStagingError] = useState<string | null>(null);
+
+  const clearSingleError = (key: string) => {
+    setSingleErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  const clearBatchError = (key: string) => {
+    setBatchErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+  };
+
+  // Delivery Challan Modal State
+  const [activeChallan, setActiveChallan] = useState<DeliveryChallanData | null>(null);
+  const [isChallanModalOpen, setIsChallanModalOpen] = useState(false);
+  const [selectedGroupModal, setSelectedGroupModal] = useState<DispatchedBatchGroup | null>(null);
+
+  // Group raw dispatches into batches (matching Movement Audit History)
+  const groupedDispatches = useMemo(() => {
+    const groups: DispatchedBatchGroup[] = [];
+    const batchMap = new Map<string, DispatchedBatchGroup>();
+    const getTs = (isoStr: string) => new Date(isoStr).getTime();
+
+    for (const d of recentDispatches) {
+      if (d.batchId) {
+        let existing = batchMap.get(d.batchId);
+        if (!existing) {
+          existing = {
+            id: d.batchId,
+            isBatch: true,
+            batchId: d.batchId,
+            siteOrCustomer: d.siteOrCustomer,
+            customerPhone: d.customerPhone || null,
+            customerAddress: d.customerAddress || null,
+            workerName: d.workerName || null,
+            dispatchedByName: d.dispatchedByName,
+            referenceDocNo: d.referenceDocNo,
+            remarks: d.remarks,
+            createdAt: d.createdAt,
+            totalQuantity: 0,
+            totalItems: 0,
+            items: [],
+            rawRecords: [],
+          };
+          batchMap.set(d.batchId, existing);
+          groups.push(existing);
+        }
+        existing.totalQuantity += d.quantity;
+        existing.totalItems += 1;
+        existing.items.push({
+          id: d.id,
+          itemName: d.itemName,
+          category: d.category,
+          unit: d.unit,
+          quantity: d.quantity,
+        });
+        existing.rawRecords.push(d);
+      } else {
+        // Fallback grouping for records with same customer/doc created within 3.5s
+        const lastGroup = groups[groups.length - 1];
+        const canGroupFallback =
+          lastGroup &&
+          !lastGroup.batchId &&
+          lastGroup.siteOrCustomer === d.siteOrCustomer &&
+          (lastGroup.referenceDocNo === d.referenceDocNo || (!lastGroup.referenceDocNo && !d.referenceDocNo)) &&
+          Math.abs(getTs(lastGroup.createdAt) - getTs(d.createdAt)) <= 3500;
+
+        if (canGroupFallback) {
+          lastGroup.isBatch = true;
+          lastGroup.totalQuantity += d.quantity;
+          lastGroup.totalItems += 1;
+          lastGroup.items.push({
+            id: d.id,
+            itemName: d.itemName,
+            category: d.category,
+            unit: d.unit,
+            quantity: d.quantity,
+          });
+          lastGroup.rawRecords.push(d);
+        } else {
+          groups.push({
+            id: d.id,
+            isBatch: false,
+            batchId: null,
+            siteOrCustomer: d.siteOrCustomer,
+            customerPhone: d.customerPhone || null,
+            customerAddress: d.customerAddress || null,
+            workerName: d.workerName || null,
+            dispatchedByName: d.dispatchedByName,
+            referenceDocNo: d.referenceDocNo,
+            remarks: d.remarks,
+            createdAt: d.createdAt,
+            totalQuantity: d.quantity,
+            totalItems: 1,
+            items: [
+              {
+                id: d.id,
+                itemName: d.itemName,
+                category: d.category,
+                unit: d.unit,
+                quantity: d.quantity,
+              },
+            ],
+            rawRecords: [d],
+          });
+        }
+      }
+    }
+
+    // Only mark as batch if there are multiple items (more than 1)
+    for (const g of groups) {
+      g.isBatch = g.items.length > 1;
+    }
+
+    return groups;
+  }, [recentDispatches]);
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -81,12 +265,31 @@ export function DispatchFormClient({
     processedList?: Array<{ name: string; quantity: number; unit: string; newOffice?: number }>;
   } | null>(null);
 
+  // Origin Location: Office Hub (Default) or Godown Warehouse (Direct)
+  const [dispatchSource, setDispatchSource] = useState<"OFFICE" | "GODOWN">("OFFICE");
+
+  // Helper to get available stock from selected source
+  const getSourceQty = (item: CatalogItemOption | null | undefined, loc?: "OFFICE" | "GODOWN") => {
+    if (!item) return 0;
+    const targetLoc = loc || dispatchSource;
+    return targetLoc === "GODOWN" ? item.godownQty : item.officeQty;
+  };
+
   // Helper to update local item stocks in memory
-  const updateLocalStock = (processed: Array<{ itemId: string; quantity: number }>) => {
+  const updateLocalStock = (
+    processed: Array<{ itemId: string; quantity: number; sourceLocation?: "OFFICE" | "GODOWN" }>
+  ) => {
     setCatalogItems((prev) =>
       prev.map((item) => {
         const found = processed.find((p) => p.itemId === item.id);
         if (found) {
+          const loc = found.sourceLocation || dispatchSource;
+          if (loc === "GODOWN") {
+            return {
+              ...item,
+              godownQty: Math.max(0, item.godownQty - found.quantity),
+            };
+          }
           return {
             ...item,
             officeQty: Math.max(0, item.officeQty - found.quantity),
@@ -99,27 +302,36 @@ export function DispatchFormClient({
 
   // Add item to batch dispatch list
   const handleAddPendingToBatch = () => {
-    if (!pendingItem) return;
-    if (pendingQty <= 0) return;
-
-    if (pendingQty > pendingItem.officeQty) {
-      setStatusMessage({
-        type: "error",
-        text: `Cannot dispatch ${pendingQty} ${pendingItem.unit}. Only ${pendingItem.officeQty} available in Office stock.`,
-      });
+    if (!pendingItem) {
+      setStagingError("Please select a solar item to add to the kit.");
       return;
     }
 
+    const available = getSourceQty(pendingItem);
+    const parsed = batchStagingItemSchema.safeParse({
+      itemId: pendingItem.id,
+      quantity: pendingQty,
+      availableStock: available,
+      locationName: dispatchSource === "GODOWN" ? "Main Godown" : "Office Hub",
+    });
+
+    if (!parsed.success) {
+      const flattened = parsed.error.flatten();
+      const err = flattened.fieldErrors.quantity?.[0] || flattened.fieldErrors.itemId?.[0] || "Invalid item or quantity";
+      setStagingError(err);
+      return;
+    }
+
+    const sourceLabel = dispatchSource === "GODOWN" ? "Godown" : "Office";
     setBatchItems((prev) => {
       const existingIndex = prev.findIndex((entry) => entry.item.id === pendingItem.id);
       if (existingIndex >= 0) {
         const copy = [...prev];
         const newTotal = copy[existingIndex].quantity + pendingQty;
-        if (newTotal > pendingItem.officeQty) {
-          setStatusMessage({
-            type: "error",
-            text: `Total requested (${newTotal} ${pendingItem.unit}) exceeds Office stock (${pendingItem.officeQty}).`,
-          });
+        if (newTotal > available) {
+          setStagingError(
+            `Total requested (${newTotal} ${pendingItem.unit}) exceeds ${sourceLabel} stock (${available}).`
+          );
           return prev;
         }
         copy[existingIndex].quantity = newTotal;
@@ -130,6 +342,8 @@ export function DispatchFormClient({
 
     setPendingItem(null);
     setPendingQty(1);
+    setStagingError(null);
+    clearBatchError("batchItems");
     setStatusMessage(null);
   };
 
@@ -142,7 +356,8 @@ export function DispatchFormClient({
     setBatchItems((prev) =>
       prev.map((entry) => {
         if (entry.item.id === itemId) {
-          if (newQty > entry.item.officeQty) {
+          const available = getSourceQty(entry.item);
+          if (newQty > available) {
             return entry;
           }
           return { ...entry, quantity: newQty };
@@ -155,60 +370,91 @@ export function DispatchFormClient({
   // Single Item Dispatch
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedItem) {
-      setStatusMessage({ type: "error", text: "Please select an item to dispatch." });
-      return;
-    }
-    if (quantity <= 0) {
-      setStatusMessage({ type: "error", text: "Quantity must be greater than 0." });
-      return;
-    }
-    if (!siteOrCustomer.trim()) {
-      setStatusMessage({
-        type: "error",
-        text: "Please provide a customer name or site location.",
-      });
-      return;
-    }
-    if (quantity > selectedItem.officeQty) {
-      setStatusMessage({
-        type: "error",
-        text: `Cannot dispatch ${quantity} ${selectedItem.unit}. Only ${selectedItem.officeQty} available in Office stock.`,
-      });
+
+    const parsed = singleDispatchSchema.safeParse({
+      itemId: selectedItem?.id || "",
+      quantity,
+      availableStock: selectedItem ? getSourceQty(selectedItem) : 0,
+      locationName: dispatchSource === "GODOWN" ? "Main Godown" : "Office Hub",
+      siteOrCustomer: siteOrCustomer.trim(),
+      customerPhone: customerPhone.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
+      docNo: docNo.trim() || undefined,
+      workerId: workerId.trim(),
+      remarks: remarks.trim() || undefined,
+    });
+
+    if (!parsed.success) {
+      const flattened = parsed.error.flatten();
+      const errors: Record<string, string> = {};
+      for (const [key, msgs] of Object.entries(flattened.fieldErrors)) {
+        if (msgs && msgs[0]) errors[key] = msgs[0];
+      }
+      setSingleErrors(errors);
+      const firstMsg = Object.values(errors)[0];
+      setStatusMessage({ type: "error", text: firstMsg });
       return;
     }
 
+    setSingleErrors({});
+    const sourceLabel = dispatchSource === "GODOWN" ? "Godown" : "Office";
     setLoading(true);
     setStatusMessage(null);
 
     const res = await dispatchToSite({
-      itemId: selectedItem.id,
+      itemId: selectedItem!.id,
       quantity,
       siteOrCustomer: siteOrCustomer.trim(),
+      customerPhone: customerPhone.trim() || undefined,
+      customerAddress: customerAddress.trim() || undefined,
       workerId: workerId || undefined,
-      docNo,
-      remarks,
+      docNo: docNo.trim() || undefined,
+      remarks: remarks.trim() || undefined,
+      fromLocation: dispatchSource,
     });
 
     setLoading(false);
 
     if (res.success) {
-      updateLocalStock([{ itemId: selectedItem.id, quantity }]);
+      updateLocalStock([{ itemId: selectedItem!.id, quantity }]);
+      const workerObj = workers.find((w) => w.id === workerId);
+      const challanInfo: DeliveryChallanData = {
+        challanNo: docNo.trim() || `DSP-${Date.now().toString().slice(-4)}`,
+        date: new Date(),
+        customerName: siteOrCustomer.trim(),
+        customerPhone: customerPhone.trim() || null,
+        customerAddress: customerAddress.trim() || null,
+        technicianName: workerObj?.fullName || null,
+        dispatchedByName: currentUser.fullName,
+        items: [
+          {
+            name: selectedItem!.name,
+            category: selectedItem!.category,
+            quantity,
+            unit: selectedItem!.unit,
+          },
+        ],
+        remarks: remarks.trim() || null,
+        sourceLocation: dispatchSource === "GODOWN" ? "Godown" : "Office",
+      };
+      setActiveChallan(challanInfo);
+
       setStatusMessage({
         type: "success",
-        text: res.message || `Dispatched ${quantity} ${selectedItem.unit} of ${selectedItem.name} for "${siteOrCustomer}".`,
+        text: res.message || `Dispatched ${quantity} ${selectedItem!.unit} of ${selectedItem!.name} from ${sourceLabel} for "${siteOrCustomer}".`,
         processedList: [
           {
-            name: selectedItem.name,
+            name: selectedItem!.name,
             quantity,
-            unit: selectedItem.unit,
-            newOffice: res.newOfficeBalance,
+            unit: selectedItem!.unit,
+            newOffice: res.newBalance,
           },
         ],
       });
 
       setSelectedItem(null);
       setQuantity(1);
+      setSingleErrors({});
 
       if (!stayOnPage) {
         setTimeout(() => {
@@ -229,40 +475,59 @@ export function DispatchFormClient({
   // Batch Multi-Item Dispatch
   const handleBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!batchSiteOrCustomer.trim()) {
-      setStatusMessage({
-        type: "error",
-        text: "Please provide a customer name or installation site reference.",
-      });
-      return;
-    }
-    if (batchItems.length === 0) {
-      setStatusMessage({
-        type: "error",
-        text: "Please add at least one material to the site dispatch kit.",
-      });
-      return;
-    }
 
-    for (const b of batchItems) {
-      if (b.quantity > b.item.officeQty) {
-        setStatusMessage({
-          type: "error",
-          text: `Cannot dispatch ${b.quantity} of ${b.item.name}. Office balance is only ${b.item.officeQty}.`,
-        });
-        return;
+    const parsed = batchDispatchHeaderSchema.safeParse({
+      siteOrCustomer: batchSiteOrCustomer.trim(),
+      customerPhone: batchCustomerPhone.trim() || undefined,
+      customerAddress: batchCustomerAddress.trim() || undefined,
+      docNo: batchDocNo.trim() || undefined,
+      workerId: batchWorkerId.trim(),
+      remarks: batchRemarks.trim() || undefined,
+    });
+
+    const errors: Record<string, string> = {};
+    if (!parsed.success) {
+      const flattened = parsed.error.flatten();
+      for (const [key, msgs] of Object.entries(flattened.fieldErrors)) {
+        if (msgs && msgs[0]) errors[key] = msgs[0];
       }
     }
 
+    if (batchItems.length === 0) {
+      errors.batchItems = "Please add at least one material to the site dispatch kit.";
+    }
+
+    const sourceLabel = dispatchSource === "GODOWN" ? "Godown" : "Office";
+    for (const b of batchItems) {
+      const available = getSourceQty(b.item);
+      if (b.quantity > available) {
+        errors.batchItems = `Cannot dispatch ${b.quantity} of ${b.item.name}. ${sourceLabel} balance is only ${available}.`;
+        break;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setBatchErrors(errors);
+      setStatusMessage({
+        type: "error",
+        text: Object.values(errors)[0],
+      });
+      return;
+    }
+
+    setBatchErrors({});
     setLoading(true);
     setStatusMessage(null);
 
     const payload = {
       items: batchItems.map((b) => ({ itemId: b.item.id, quantity: b.quantity })),
       siteOrCustomer: batchSiteOrCustomer.trim(),
+      customerPhone: batchCustomerPhone.trim() || undefined,
+      customerAddress: batchCustomerAddress.trim() || undefined,
       workerId: batchWorkerId || undefined,
       docNo: batchDocNo.trim() || undefined,
       remarks: batchRemarks.trim() || undefined,
+      fromLocation: dispatchSource,
     };
 
     const res = await batchDispatchToSite(payload);
@@ -270,9 +535,29 @@ export function DispatchFormClient({
 
     if (res.success) {
       updateLocalStock(payload.items);
+      const workerObj = workers.find((w) => w.id === batchWorkerId);
+      const challanInfo: DeliveryChallanData = {
+        challanNo: batchDocNo.trim() || `DSP-${Date.now().toString().slice(-4)}`,
+        date: new Date(),
+        customerName: batchSiteOrCustomer.trim(),
+        customerPhone: batchCustomerPhone.trim() || null,
+        customerAddress: batchCustomerAddress.trim() || null,
+        technicianName: workerObj?.fullName || null,
+        dispatchedByName: currentUser.fullName,
+        items: batchItems.map((b) => ({
+          name: b.item.name,
+          category: b.item.category,
+          quantity: b.quantity,
+          unit: b.item.unit,
+        })),
+        remarks: batchRemarks.trim() || null,
+        sourceLocation: dispatchSource === "GODOWN" ? "Godown" : "Office",
+      };
+      setActiveChallan(challanInfo);
+
       setStatusMessage({
         type: "success",
-        text: res.message || `Successfully dispatched ${batchItems.length} items for "${batchSiteOrCustomer}".`,
+        text: res.message || `Successfully dispatched ${batchItems.length} items from ${sourceLabel} for "${batchSiteOrCustomer}".`,
         processedList: batchItems.map((b) => ({
           name: b.item.name,
           quantity: b.quantity,
@@ -301,8 +586,8 @@ export function DispatchFormClient({
   };
 
   const totalBatchUnits = batchItems.reduce((acc, curr) => acc + curr.quantity, 0);
-  const singleAvailableOffice = selectedItem ? selectedItem.officeQty : 0;
-  const singleIsExceeded = selectedItem ? quantity > singleAvailableOffice : false;
+  const singleAvailableQty = selectedItem ? getSourceQty(selectedItem) : 0;
+  const singleIsExceeded = selectedItem ? quantity > singleAvailableQty : false;
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -319,7 +604,9 @@ export function DispatchFormClient({
                   Movement 3
                 </span>
                 <span className="text-xs font-semibold text-slate-400">
-                  Office Hub ➔ Installation Site
+                  {dispatchSource === "GODOWN"
+                    ? "Godown Warehouse ➔ Installation Site"
+                    : "Office Hub ➔ Installation Site"}
                 </span>
               </div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
@@ -338,26 +625,130 @@ export function DispatchFormClient({
         </div>
 
         <p className="text-xs text-slate-500 mt-3 leading-relaxed">
-          Record solar materials taken by installation technicians from the Office staging hub for a specific customer or site project. Add complete multi-item kits in one checkout.
+          Record solar materials taken by installation technicians from the Office staging hub or directly from the Godown warehouse for a specific customer or site project.
         </p>
+
+        {/* Dispatch Source Selector (Only needed for Single / Batch mode; Challan mode has per-item selection) */}
+        {activeTab === "challan" ? (
+          <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 bg-amber-50/50 p-3 rounded-2xl border border-amber-200/60">
+            <div className="flex items-center gap-2.5 text-xs text-amber-950">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-700 flex items-center justify-center shrink-0">
+                <Warehouse className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="font-extrabold text-amber-900">Per-Item Warehouse Stock Allocation</div>
+                <div className="text-[11px] text-amber-800">
+                  You can choose <span className="font-bold underline">Main Godown</span> or <span className="font-bold underline">Office Hub</span> individually for each solar item below.
+                </div>
+              </div>
+            </div>
+            <span className="self-start sm:self-auto text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-2.5 py-1 rounded-full border border-emerald-300 shrink-0">
+              ✓ Multi-Warehouse Active
+            </span>
+          </div>
+        ) : (
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+              Dispatch Origin:
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setDispatchSource("OFFICE");
+                  setStatusMessage(null);
+                }}
+                className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                  dispatchSource === "OFFICE"
+                    ? "border-amber-500 bg-amber-50/50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    dispatchSource === "OFFICE"
+                      ? "bg-amber-600 text-white"
+                      : "bg-amber-500/10 text-amber-600"
+                  }`}
+                >
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-extrabold text-xs sm:text-sm">Office Staging Hub</div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate">
+                    Office Stock (Office ➔ Site)
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDispatchSource("GODOWN");
+                  setStatusMessage(null);
+                }}
+                className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                  dispatchSource === "GODOWN"
+                    ? "border-amber-500 bg-amber-50/50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs"
+                    : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    dispatchSource === "GODOWN"
+                      ? "bg-amber-600 text-white"
+                      : "bg-amber-500/10 text-amber-600"
+                  }`}
+                >
+                  <Warehouse className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-extrabold text-xs sm:text-sm">Main Godown Warehouse</div>
+                  <div className="text-[11px] text-slate-500 font-medium truncate">
+                    Direct Warehouse Dispatch (Godown ➔ Site)
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Mode Selector Tabs */}
         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="w-full sm:w-auto grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 gap-1">
+          <div className="w-full sm:w-auto grid grid-cols-3 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("challan");
+                setStatusMessage(null);
+              }}
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
+                activeTab === "challan"
+                  ? "bg-white text-amber-800 shadow-xs ring-1 ring-amber-500/30 font-black"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
+              <span className="truncate">Challan Form</span>
+              <span className="hidden md:inline px-1 py-0.2 bg-amber-100 text-amber-800 rounded text-[9px] font-black shrink-0">
+                Challan Slip
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => {
                 setActiveTab("batch");
                 setStatusMessage(null);
               }}
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "batch"
-                  ? "bg-white text-amber-700 shadow-xs"
+                  ? "bg-white text-amber-700 shadow-xs font-black"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600 shrink-0" />
-              <span className="truncate">Batch Kit</span>
+              <span className="truncate">Custom Kit</span>
               {batchItems.length > 0 && (
                 <span className="px-1.5 py-0.2 bg-amber-600 text-white rounded-full text-[10px] font-black shrink-0">
                   {batchItems.length}
@@ -371,9 +762,9 @@ export function DispatchFormClient({
                 setActiveTab("single");
                 setStatusMessage(null);
               }}
-              className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
+              className={`flex items-center justify-center gap-1.5 px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "single"
-                  ? "bg-white text-slate-900 shadow-xs"
+                  ? "bg-white text-slate-900 shadow-xs font-black"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -434,67 +825,247 @@ export function DispatchFormClient({
             </div>
           </div>
 
-          {statusMessage.type === "success" && stayOnPage && (
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-emerald-200/50">
-              <button
-                type="button"
-                onClick={() => setStatusMessage(null)}
-                className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 px-2.5 py-1 rounded-lg hover:bg-emerald-100/60 transition-colors"
-              >
-                Dismiss
-              </button>
-              <Link
-                href="/dashboard"
-                className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 shadow-2xs"
-              >
-                <span>Go to Dashboard</span>
-                <span>➔</span>
-              </Link>
+          {statusMessage.type === "success" && (
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-emerald-200/50">
+              {activeChallan && (
+                <button
+                  type="button"
+                  onClick={() => setIsChallanModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 active:scale-95 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-sm transition-transform touch-target"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>🖨️ Print Delivery Challan Voucher</span>
+                </button>
+              )}
+              {stayOnPage && (
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setStatusMessage(null)}
+                    className="text-xs font-semibold text-emerald-700 hover:text-emerald-900 px-2.5 py-1 rounded-lg hover:bg-emerald-100/60 transition-colors"
+                  >
+                    Dismiss
+                  </button>
+                  <Link
+                    href="/dashboard"
+                    className="text-xs font-bold text-emerald-800 hover:text-emerald-950 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-emerald-300 shadow-2xs"
+                  >
+                    <span>Go to Dashboard</span>
+                    <span>➔</span>
+                  </Link>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
+      {/* ================= STANDARD DELIVERY CHALLAN SLIP MODE ================= */}
+      {activeTab === "challan" && (
+        <StandardChallanForm
+          catalogItems={catalogItems}
+          workers={workers}
+          currentUser={currentUser}
+          customerSuggestions={customerSuggestions}
+          onSuccess={(processedItems, challanData, msg) => {
+            updateLocalStock(processedItems);
+            setActiveChallan(challanData);
+            setStatusMessage({
+              type: "success",
+              text: msg,
+              processedList: challanData.items.map((i) => ({
+                name: i.name,
+                quantity: i.quantity,
+                unit: i.unit,
+              })),
+            });
+
+            if (!stayOnPage) {
+              setTimeout(() => {
+                router.push("/dashboard");
+                router.refresh();
+              }, 700);
+            } else {
+              router.refresh();
+            }
+          }}
+          onError={(err) => {
+            setStatusMessage({
+              type: "error",
+              text: err,
+            });
+          }}
+        />
+      )}
+
       {/* ================= MULTI-ITEM BATCH MODE ================= */}
       {activeTab === "batch" && (
         <form onSubmit={handleBatchSubmit} className="space-y-6">
-          {/* Section 1: Site & Technician Information */}
+          {/* Section 1: Customer & Delivery Challan Information */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
-            <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-amber-600" />
-              <span>Step 1: Installation Site & Technician Reference</span>
-            </h3>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-amber-600" />
+                <span>Step 1: Customer & Delivery Challan Details</span>
+              </h3>
+              <span className="text-[10px] bg-blue-50 text-blue-700 font-extrabold px-2 py-0.5 rounded-full border border-blue-200/60">
+                Matches Jaffins Challan Slip
+              </span>
+            </div>
 
-            {/* Site / Customer Name */}
+            {/* Customer Name */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Site / Customer Reference <span className="text-amber-500">*</span>
+                Customer Name / Site Reference <span className="text-amber-500">*</span>
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  required
-                  value={batchSiteOrCustomer}
-                  onChange={(e) => setBatchSiteOrCustomer(e.target.value)}
-                  placeholder="e.g. Ramesh Patel - 5kW Rooftop Kalvibid, Bhavnagar"
-                  className="w-full pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                />
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <AutocompleteInput
+                value={batchSiteOrCustomer}
+                onChange={(val) => {
+                  setBatchSiteOrCustomer(val);
+                  clearBatchError("siteOrCustomer");
+                }}
+                onSelectOption={(opt) => {
+                  clearBatchError("siteOrCustomer");
+                  if (opt.extraData?.phone) {
+                    setBatchCustomerPhone(opt.extraData.phone);
+                    clearBatchError("customerPhone");
+                  }
+                  if (opt.extraData?.address) {
+                    setBatchCustomerAddress(opt.extraData.address);
+                  }
+                }}
+                options={customerOptions}
+                placeholder="e.g. મહેશ અમરસિંહ પસીયા (Mahesh Amarsinh Pasiya)"
+                dropdownTitle="Saved Customers from Database"
+                leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
+                hasError={!!batchErrors.siteOrCustomer}
+                inputClassName={cn(
+                  "py-3 font-medium",
+                  batchErrors.siteOrCustomer
+                    ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                    : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                )}
+              />
+              {batchErrors.siteOrCustomer && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{batchErrors.siteOrCustomer}</span>
+                </p>
+              )}
+            </div>
+
+            {/* Mobile & Challan No. */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Customer Mobile Number
+                </label>
+                <div className="relative">
+                  <input
+                    type="tel"
+                    value={batchCustomerPhone}
+                    onChange={(e) => {
+                      setBatchCustomerPhone(e.target.value);
+                      clearBatchError("customerPhone");
+                    }}
+                    placeholder="e.g. 8160275552"
+                    className={cn(
+                      "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all font-mono",
+                      batchErrors.customerPhone
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                        : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    )}
+                  />
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                {batchErrors.customerPhone && (
+                  <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>{batchErrors.customerPhone}</span>
+                  </p>
+                )}
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                  Delivery Challan No.
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={batchDocNo}
+                    onChange={(e) => {
+                      setBatchDocNo(e.target.value);
+                      clearBatchError("docNo");
+                    }}
+                    placeholder="e.g. 456 or CH-102"
+                    className={cn(
+                      "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all font-mono font-bold",
+                      batchErrors.docNo
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                        : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    )}
+                  />
+                  <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+                {batchErrors.docNo && (
+                  <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>{batchErrors.docNo}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Delivery Address */}
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Site / Delivery Address
+              </label>
+              <input
+                type="text"
+                value={batchCustomerAddress}
+                onChange={(e) => {
+                  setBatchCustomerAddress(e.target.value);
+                  clearBatchError("customerAddress");
+                }}
+                placeholder="e.g. ઓપ. પ્લોટ નં. 2369, રાજપુતવાડા, ઘોઘા (Opp. Plot 2369, Rajputwada, Ghogha)"
+                className={cn(
+                  "w-full px-3.5 py-2.5 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                  batchErrors.customerAddress
+                    ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                    : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                )}
+              />
+              {batchErrors.customerAddress && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{batchErrors.customerAddress}</span>
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Assigned Technician */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Assigned Solar Technician
+                  Assigned Solar Technician <span className="text-amber-500">*</span>
                 </label>
                 <div className="relative">
                   <select
                     value={batchWorkerId}
-                    onChange={(e) => setBatchWorkerId(e.target.value)}
-                    className="w-full pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    onChange={(e) => {
+                      setBatchWorkerId(e.target.value);
+                      clearBatchError("workerId");
+                    }}
+                    className={cn(
+                      "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                      batchErrors.workerId
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                        : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                    )}
                   >
+                    <option value="">-- Select Solar Technician --</option>
                     {workers.map((w) => (
                       <option key={w.id} value={w.id}>
                         {w.fullName} ({w.role.replace("_", " ")})
@@ -503,38 +1074,41 @@ export function DispatchFormClient({
                   </select>
                   <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
+                {batchErrors.workerId && (
+                  <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>{batchErrors.workerId}</span>
+                  </p>
+                )}
               </div>
 
-              {/* Job Card / Delivery Slip No */}
+              {/* Remarks */}
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Job Card / Delivery Slip No.
+                  Delivery Notes / Remarks (Optional)
                 </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={batchDocNo}
-                    onChange={(e) => setBatchDocNo(e.target.value)}
-                    placeholder="e.g. JOB-7840"
-                    className="w-full pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-                  />
-                  <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                </div>
+                <input
+                  type="text"
+                  value={batchRemarks}
+                  onChange={(e) => {
+                    setBatchRemarks(e.target.value);
+                    clearBatchError("remarks");
+                  }}
+                  placeholder="e.g. 6 ફુટ પાઇપ વધેલો છે (60x40) પછી લાવવો"
+                  className={cn(
+                    "w-full px-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                    batchErrors.remarks
+                      ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                      : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  )}
+                />
+                {batchErrors.remarks && (
+                  <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                    <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span>{batchErrors.remarks}</span>
+                  </p>
+                )}
               </div>
-            </div>
-
-            {/* Remarks */}
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Delivery Notes / Site Remarks (Optional)
-              </label>
-              <input
-                type="text"
-                value={batchRemarks}
-                onChange={(e) => setBatchRemarks(e.target.value)}
-                placeholder="e.g. Loaded onto vehicle for morning rooftop setup"
-                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-              />
             </div>
           </div>
 
@@ -551,22 +1125,26 @@ export function DispatchFormClient({
                 items={catalogItems}
                 selectedItemId={pendingItem?.id || ""}
                 onSelect={(item) => setPendingItem(item)}
-                locationFocus="OFFICE"
+                locationFocus={dispatchSource}
                 label="Select Solar Item for Site"
               />
 
               {pendingItem && (
                 <div className="p-3 rounded-xl bg-white border border-slate-200/70 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-slate-600">
-                    <Building2 className="w-4 h-4 text-blue-500" />
-                    <span>Available in Office Stock:</span>
+                    {dispatchSource === "GODOWN" ? (
+                      <Warehouse className="w-4 h-4 text-amber-500" />
+                    ) : (
+                      <Building2 className="w-4 h-4 text-blue-500" />
+                    )}
+                    <span>Available in {dispatchSource === "GODOWN" ? "Godown" : "Office"} Stock:</span>
                   </div>
                   <span
                     className={`font-bold ${
-                      pendingItem.officeQty > 0 ? "text-slate-900" : "text-rose-600"
+                      getSourceQty(pendingItem) > 0 ? "text-slate-900" : "text-rose-600"
                     }`}
                   >
-                    {formatNumber(pendingItem.officeQty)} {pendingItem.unit}
+                    {formatNumber(getSourceQty(pendingItem))} {pendingItem.unit}
                   </span>
                 </div>
               )}
@@ -577,7 +1155,7 @@ export function DispatchFormClient({
                     value={pendingQty}
                     onChange={setPendingQty}
                     unit={pendingItem?.unit || "NOS"}
-                    max={pendingItem ? pendingItem.officeQty : null}
+                    max={pendingItem ? getSourceQty(pendingItem) : null}
                     label="Checkout Quantity"
                   />
                 </div>
@@ -585,14 +1163,29 @@ export function DispatchFormClient({
                 <button
                   type="button"
                   onClick={handleAddPendingToBatch}
-                  disabled={!pendingItem || pendingQty <= 0 || (pendingItem && pendingQty > pendingItem.officeQty)}
+                  disabled={!pendingItem || pendingQty <= 0}
                   className="px-5 py-3.5 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white font-bold text-sm shadow-md shadow-amber-500/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 shrink-0 touch-target"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Material to Kit</span>
                 </button>
               </div>
+
+              {stagingError && (
+                <p className="text-xs text-rose-600 font-bold mt-2 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{stagingError}</span>
+                </p>
+              )}
             </div>
+
+            {/* Batch Items Error Message */}
+            {batchErrors.batchItems && (
+              <p className="text-xs text-rose-600 font-bold p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{batchErrors.batchItems}</span>
+              </p>
+            )}
 
             {/* Staged Items List */}
             {batchItems.length > 0 ? (
@@ -725,73 +1318,224 @@ export function DispatchFormClient({
       {activeTab === "single" && (
         <form
           onSubmit={handleSingleSubmit}
+          noValidate
           className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-2xs space-y-5"
         >
           {/* Item Combobox */}
-          <ItemCombobox
-            items={catalogItems}
-            selectedItemId={selectedItem?.id || ""}
-            onSelect={(item) => setSelectedItem(item)}
-            locationFocus="OFFICE"
-            label="Solar Item to Dispatch"
-          />
+          <div>
+            <ItemCombobox
+              items={catalogItems}
+              selectedItemId={selectedItem?.id || ""}
+              onSelect={(item) => {
+                setSelectedItem(item);
+                clearSingleError("itemId");
+                clearSingleError("quantity");
+              }}
+              locationFocus={dispatchSource}
+              label="Solar Item to Dispatch"
+            />
+            {singleErrors.itemId && (
+              <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{singleErrors.itemId}</span>
+              </p>
+            )}
+          </div>
 
-          {/* Live Office Stock Pill */}
+          {/* Live Stock Pill */}
           {selectedItem && (
             <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
               <div className="flex items-center gap-2 text-slate-600">
-                <Building2 className="w-4 h-4 text-blue-500" />
-                <span>Available in Office Stock:</span>
+                {dispatchSource === "GODOWN" ? (
+                  <Warehouse className="w-4 h-4 text-amber-500" />
+                ) : (
+                  <Building2 className="w-4 h-4 text-blue-500" />
+                )}
+                <span>Available in {dispatchSource === "GODOWN" ? "Godown" : "Office"} Stock:</span>
               </div>
               <span
                 className={`font-bold ${
-                  singleAvailableOffice > 0 ? "text-slate-900" : "text-rose-600"
+                  singleAvailableQty > 0 ? "text-slate-900" : "text-rose-600"
                 }`}
               >
-                {formatNumber(singleAvailableOffice)} {selectedItem.unit}
+                {formatNumber(singleAvailableQty)} {selectedItem.unit}
               </span>
             </div>
           )}
 
-          {/* Quantity Stepper with Office Stock Limit */}
-          <QuantityStepper
-            value={quantity}
-            onChange={setQuantity}
-            unit={selectedItem?.unit || "NOS"}
-            max={selectedItem ? selectedItem.officeQty : null}
-            label="Dispatch Quantity"
-          />
+          {/* Quantity Stepper with Stock Limit */}
+          <div>
+            <QuantityStepper
+              value={quantity}
+              onChange={(q) => {
+                setQuantity(q);
+                clearSingleError("quantity");
+              }}
+              unit={selectedItem?.unit || "NOS"}
+              max={selectedItem ? getSourceQty(selectedItem) : null}
+              label="Dispatch Quantity"
+            />
+            {singleErrors.quantity && (
+              <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{singleErrors.quantity}</span>
+              </p>
+            )}
+          </div>
 
           {/* Customer / Site Reference */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-              Site / Customer Reference <span className="text-amber-500">*</span>
+              Customer Name / Site Reference <span className="text-amber-500">*</span>
             </label>
-            <div className="relative">
-              <input
-                type="text"
-                required
-                value={siteOrCustomer}
-                onChange={(e) => setSiteOrCustomer(e.target.value)}
-                placeholder="e.g. Ramesh Patel - 5kW Kalvibid, Bhavnagar"
-                className="w-full pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-              />
-              <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <AutocompleteInput
+              value={siteOrCustomer}
+              onChange={(val) => {
+                setSiteOrCustomer(val);
+                clearSingleError("siteOrCustomer");
+              }}
+              onSelectOption={(opt) => {
+                clearSingleError("siteOrCustomer");
+                if (opt.extraData?.phone) {
+                  setCustomerPhone(opt.extraData.phone);
+                  clearSingleError("customerPhone");
+                }
+                if (opt.extraData?.address) {
+                  setCustomerAddress(opt.extraData.address);
+                }
+              }}
+              options={customerOptions}
+              placeholder="e.g. મહેશ અમરસિંહ પસીયા (Mahesh Amarsinh Pasiya)"
+              dropdownTitle="Saved Customers from Database"
+              leftIcon={<MapPin className="w-4 h-4 text-slate-400" />}
+              hasError={!!singleErrors.siteOrCustomer}
+              inputClassName={cn(
+                "py-3 font-medium",
+                singleErrors.siteOrCustomer
+                  ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                  : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+              )}
+            />
+            {singleErrors.siteOrCustomer && (
+              <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{singleErrors.siteOrCustomer}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Customer Phone & Challan No. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Customer Mobile Number
+              </label>
+              <div className="relative">
+                <input
+                  type="tel"
+                  value={customerPhone}
+                  onChange={(e) => {
+                    setCustomerPhone(e.target.value);
+                    clearSingleError("customerPhone");
+                  }}
+                  placeholder="e.g. 8160275552"
+                  className={cn(
+                    "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all font-mono",
+                    singleErrors.customerPhone
+                      ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                      : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  )}
+                />
+                <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              </div>
+              {singleErrors.customerPhone && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{singleErrors.customerPhone}</span>
+                </p>
+              )}
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+                Delivery Challan No.
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={docNo}
+                  onChange={(e) => {
+                    setDocNo(e.target.value);
+                    clearSingleError("docNo");
+                  }}
+                  placeholder="e.g. 456 or CH-102"
+                  className={cn(
+                    "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all font-mono font-bold",
+                    singleErrors.docNo
+                      ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                      : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  )}
+                />
+                <FileText className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              </div>
+              {singleErrors.docNo && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{singleErrors.docNo}</span>
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Delivery Address */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+              Site / Delivery Address
+            </label>
+            <input
+              type="text"
+              value={customerAddress}
+              onChange={(e) => {
+                setCustomerAddress(e.target.value);
+                clearSingleError("customerAddress");
+              }}
+              placeholder="e.g. ઓપ. પ્લોટ નં. 2369, રાજપુતવાડા, ઘોઘા (Opp. Plot 2369, Rajputwada, Ghogha)"
+              className={cn(
+                "w-full px-3.5 py-2.5 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                singleErrors.customerAddress
+                  ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                  : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+              )}
+            />
+            {singleErrors.customerAddress && (
+              <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                <span>{singleErrors.customerAddress}</span>
+              </p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Technician */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Assigned Solar Technician
+                Assigned Solar Technician <span className="text-amber-500">*</span>
               </label>
               <div className="relative">
                 <select
                   value={workerId}
-                  onChange={(e) => setWorkerId(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  onChange={(e) => {
+                    setWorkerId(e.target.value);
+                    clearSingleError("workerId");
+                  }}
+                  className={cn(
+                    "w-full pl-9 pr-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                    singleErrors.workerId
+                      ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                      : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  )}
                 >
+                  <option value="">-- Select Solar Technician --</option>
                   {workers.map((w) => (
                     <option key={w.id} value={w.id}>
                       {w.fullName} ({w.role.replace("_", " ")})
@@ -800,35 +1544,41 @@ export function DispatchFormClient({
                 </select>
                 <UserCheck className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               </div>
+              {singleErrors.workerId && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{singleErrors.workerId}</span>
+                </p>
+              )}
             </div>
 
-            {/* Job Card / DC No */}
+            {/* Remarks */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Job Card / Delivery Slip No.
+                Delivery Notes / Remarks (Optional)
               </label>
               <input
                 type="text"
-                value={docNo}
-                onChange={(e) => setDocNo(e.target.value)}
-                placeholder="e.g. JOB-7840"
-                className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                value={remarks}
+                onChange={(e) => {
+                  setRemarks(e.target.value);
+                  clearSingleError("remarks");
+                }}
+                placeholder="e.g. 6 ફુટ પાઇપ વધેલો છે (60x40) પછી લાવવો"
+                className={cn(
+                  "w-full px-3.5 py-3 rounded-xl border bg-white text-sm focus:outline-none transition-all",
+                  singleErrors.remarks
+                    ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-300 focus:border-rose-500"
+                    : "border-slate-200 focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                )}
               />
+              {singleErrors.remarks && (
+                <p className="text-xs text-rose-600 font-bold mt-1.5 flex items-center gap-1.5 animate-in fade-in">
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                  <span>{singleErrors.remarks}</span>
+                </p>
+              )}
             </div>
-          </div>
-
-          {/* Remarks */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-              Installation / Delivery Notes
-            </label>
-            <input
-              type="text"
-              value={remarks}
-              onChange={(e) => setRemarks(e.target.value)}
-              placeholder="e.g. Loaded onto field vehicle for 10:00 AM roof setup"
-              className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
-            />
           </div>
 
           {/* Submit Button */}
@@ -839,7 +1589,7 @@ export function DispatchFormClient({
               !selectedItem ||
               quantity <= 0 ||
               singleIsExceeded ||
-              singleAvailableOffice <= 0 ||
+              singleAvailableQty <= 0 ||
               !siteOrCustomer.trim()
             }
             className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-amber-500/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
@@ -856,8 +1606,8 @@ export function DispatchFormClient({
         </form>
       )}
 
-      {/* Recent Dispatched Records Table */}
-      {recentDispatches && recentDispatches.length > 0 && (
+      {/* Recent Dispatched Records Table (Grouped by Batch identically to Movement Audit History) */}
+      {groupedDispatches && groupedDispatches.length > 0 && (
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs overflow-hidden space-y-0">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-purple-50/50">
             <div className="flex items-center gap-2">
@@ -881,38 +1631,102 @@ export function DispatchFormClient({
                 <tr>
                   <th className="py-3 px-4">Date & Time</th>
                   <th className="py-3 px-4">Site / Customer</th>
-                  <th className="py-3 px-4">Solar Item</th>
-                  <th className="py-3 px-4 text-right">Quantity</th>
+                  <th className="py-3 px-4">Dispatched Materials</th>
+                  <th className="py-3 px-4 text-right">Total Units</th>
                   <th className="py-3 px-4">Technician</th>
                   <th className="py-3 px-4">Doc / Job #</th>
+                  <th className="py-3 px-4 text-center">Challan Voucher</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {recentDispatches.map((d) => (
-                  <tr key={d.id} className="hover:bg-purple-50/30 transition-colors">
-                    <td className="py-3 px-4 whitespace-nowrap text-slate-600 font-medium">
-                      {new Date(d.createdAt).toLocaleDateString("en-IN", {
+                {groupedDispatches.map((g) => (
+                  <tr
+                    key={g.id}
+                    onClick={() => setSelectedGroupModal(g)}
+                    className="hover:bg-purple-50/40 transition-colors cursor-pointer group"
+                  >
+                    <td className="py-3.5 px-4 whitespace-nowrap text-slate-600 font-medium">
+                      {new Date(g.createdAt).toLocaleDateString("en-IN", {
                         day: "2-digit",
                         month: "short",
                         hour: "2-digit",
                         minute: "2-digit",
                       })}
                     </td>
-                    <td className="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">
-                      {d.siteOrCustomer}
+                    <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
+                      <div className="text-sm font-extrabold text-slate-900">{g.siteOrCustomer}</div>
+                      {g.customerPhone && (
+                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          <span>{g.customerPhone}</span>
+                        </div>
+                      )}
                     </td>
-                    <td className="py-3 px-4 whitespace-nowrap">
-                      <span className="font-bold text-slate-900">{d.itemName}</span>
-                      <span className="text-[10px] text-slate-400 ml-1.5 font-medium">({d.category})</span>
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      {g.isBatch && g.items.length > 1 ? (
+                        <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-purple-100 text-purple-700 border border-purple-200 inline-flex items-center gap-1.5 shadow-2xs">
+                          <Layers className="w-3.5 h-3.5 text-purple-600" />
+                          <span>Batch ({g.totalItems} Items)</span>
+                        </span>
+                      ) : (
+                        <div className="whitespace-nowrap">
+                          <span className="font-bold text-slate-900">{g.items[0]?.itemName}</span>
+                          <span className="text-[10px] text-slate-400 ml-1.5 font-medium">
+                            ({g.items[0]?.category})
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td className="py-3 px-4 text-right font-black font-mono text-purple-700 whitespace-nowrap">
-                      {d.quantity} {d.unit}
+                    <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                      {g.isBatch && g.items.length > 1 ? (
+                        <div>
+                          <span className="font-black font-mono text-purple-700 text-sm">
+                            {formatNumber(g.totalQuantity)} Units
+                          </span>
+                          <div className="text-[10px] text-slate-400 font-semibold">
+                            {g.totalItems} distinct items
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="font-black font-mono text-purple-700 text-sm">
+                          {formatNumber(g.totalQuantity)} {g.items[0]?.unit}
+                        </span>
+                      )}
                     </td>
-                    <td className="py-3 px-4 text-slate-700 whitespace-nowrap">
-                      {d.workerName || "Unassigned"}
+                    <td className="py-3.5 px-4 text-slate-700 whitespace-nowrap">
+                      {g.workerName || "Unassigned"}
                     </td>
-                    <td className="py-3 px-4 font-mono text-slate-600 whitespace-nowrap">
-                      {d.referenceDocNo || "-"}
+                    <td className="py-3.5 px-4 font-mono text-slate-600 whitespace-nowrap">
+                      {g.referenceDocNo || "-"}
+                    </td>
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveChallan({
+                            challanNo: g.referenceDocNo || `DSP-${g.id.slice(-4).toUpperCase()}`,
+                            date: g.createdAt,
+                            customerName: g.siteOrCustomer,
+                            customerPhone: g.customerPhone || null,
+                            customerAddress: g.customerAddress || null,
+                            technicianName: g.workerName || null,
+                            dispatchedByName: g.dispatchedByName,
+                            items: g.items.map((i) => ({
+                              name: i.itemName,
+                              category: i.category,
+                              quantity: i.quantity,
+                              unit: i.unit,
+                            })),
+                            remarks: g.remarks || null,
+                          });
+                          setIsChallanModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-amber-50 hover:text-amber-800 text-slate-700 font-bold text-[11px] inline-flex items-center gap-1 shadow-2xs transition-colors"
+                        title="Print Delivery Challan Voucher"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Print Voucher</span>
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -921,6 +1735,195 @@ export function DispatchFormClient({
           </div>
         </div>
       )}
+
+      {/* Grouped Dispatch Details Modal */}
+      {selectedGroupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div
+            className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-purple-50/50 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/10 text-purple-600 flex items-center justify-center shrink-0">
+                  <Truck className="w-5 h-5 text-purple-600" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900">
+                      Site Dispatch Voucher Details
+                    </h3>
+                    {selectedGroupModal.isBatch && selectedGroupModal.items.length > 1 && (
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200">
+                        {selectedGroupModal.totalItems} Items
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Dispatched on {formatDate(selectedGroupModal.createdAt)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSelectedGroupModal(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              {/* Meta Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Customer / Site
+                  </span>
+                  <span className="text-xs font-extrabold text-slate-900 mt-0.5 block truncate">
+                    {selectedGroupModal.siteOrCustomer}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Contact Phone
+                  </span>
+                  <span className="text-xs font-mono font-bold text-slate-800 mt-0.5 block">
+                    {selectedGroupModal.customerPhone || "Not specified"}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Challan / Doc #
+                  </span>
+                  <span className="text-xs font-mono font-black text-amber-700 mt-0.5 block">
+                    {selectedGroupModal.referenceDocNo || "Auto-Generated"}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Technician
+                  </span>
+                  <span className="text-xs font-extrabold text-slate-800 mt-0.5 block truncate">
+                    {selectedGroupModal.workerName || "Unassigned"}
+                  </span>
+                </div>
+
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 col-span-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Dispatched By
+                  </span>
+                  <span className="text-xs font-bold text-slate-800 mt-0.5 block">
+                    {selectedGroupModal.dispatchedByName}
+                  </span>
+                </div>
+              </div>
+
+              {/* Items List Table */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                    Materials Dispatched ({selectedGroupModal.totalItems} Items)
+                  </span>
+                  <span className="text-xs font-mono font-black text-purple-700">
+                    Total: {formatNumber(selectedGroupModal.totalQuantity)} Units
+                  </span>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-bold uppercase text-[10px]">
+                      <tr>
+                        <th className="py-2.5 px-3">#</th>
+                        <th className="py-2.5 px-3">Item Name</th>
+                        <th className="py-2.5 px-3">Category</th>
+                        <th className="py-2.5 px-3 text-right">Quantity</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {selectedGroupModal.items.map((item, idx) => (
+                        <tr key={item.id} className="hover:bg-slate-50/50">
+                          <td className="py-2.5 px-3 text-slate-400 font-mono">{idx + 1}</td>
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{item.itemName}</td>
+                          <td className="py-2.5 px-3">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-semibold">
+                              {item.category}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-black font-mono text-purple-700">
+                            {formatNumber(item.quantity)} {item.unit}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {selectedGroupModal.remarks && (
+                <div className="p-3 bg-amber-50/60 rounded-2xl border border-amber-200/60 text-xs text-amber-900">
+                  <span className="font-bold block text-[10px] uppercase text-amber-700 mb-0.5">
+                    Field Notes / Remarks:
+                  </span>
+                  {selectedGroupModal.remarks}
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={() => setSelectedGroupModal(null)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+              >
+                Close
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveChallan({
+                    challanNo: selectedGroupModal.referenceDocNo || `DSP-${selectedGroupModal.id.slice(-4).toUpperCase()}`,
+                    date: selectedGroupModal.createdAt,
+                    customerName: selectedGroupModal.siteOrCustomer,
+                    customerPhone: selectedGroupModal.customerPhone || null,
+                    customerAddress: selectedGroupModal.customerAddress || null,
+                    technicianName: selectedGroupModal.workerName || null,
+                    dispatchedByName: selectedGroupModal.dispatchedByName,
+                    items: selectedGroupModal.items.map((i) => ({
+                      name: i.itemName,
+                      category: i.category,
+                      quantity: i.quantity,
+                      unit: i.unit,
+                    })),
+                    remarks: selectedGroupModal.remarks || null,
+                  });
+                  setSelectedGroupModal(null);
+                  setIsChallanModalOpen(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-colors"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Delivery Challan Voucher</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delivery Challan Print / Preview Modal */}
+      <DeliveryChallanModal
+        isOpen={isChallanModalOpen}
+        onClose={() => setIsChallanModalOpen(false)}
+        data={activeChallan}
+      />
     </div>
   );
 }

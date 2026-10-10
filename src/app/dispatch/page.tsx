@@ -4,6 +4,7 @@ import { getRolePermissions } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { DispatchFormClient } from "./DispatchFormClient";
+import { getAutocompleteData } from "@/actions/inventory";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +17,8 @@ export default async function DispatchPage() {
     redirect("/dashboard?error=unauthorized_dispatch");
   }
 
-  // Fetch items, workers, and recent dispatches in parallel to minimize cloud DB round trips
-  const [items, workers, recentDispatches] = await Promise.all([
+  // Fetch items, workers, recent dispatches, and customer suggestions in parallel
+  const [items, workers, recentDispatches, autocompleteData] = await Promise.all([
     prisma.item.findMany({
       include: {
         balances: true,
@@ -37,8 +38,9 @@ export default async function DispatchPage() {
         createdByUser: { select: { fullName: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 60,
     }),
+    getAutocompleteData(),
   ]);
 
   const formattedItems = items.map((item) => {
@@ -57,12 +59,15 @@ export default async function DispatchPage() {
 
   const formattedRecentDispatches = recentDispatches.map((d) => ({
     id: d.id,
+    batchId: d.batchId || null,
     itemId: d.itemId,
     itemName: d.item.name,
     category: d.item.category,
     unit: d.item.unit,
     quantity: d.quantity,
     siteOrCustomer: d.siteOrCustomer || "Unspecified Site",
+    customerPhone: d.customerPhone || null,
+    customerAddress: d.customerAddress || null,
     workerName: d.worker?.fullName || null,
     dispatchedByName: d.createdByUser.fullName,
     referenceDocNo: d.referenceDocNo,
@@ -77,6 +82,7 @@ export default async function DispatchPage() {
         workers={workers}
         currentUser={user}
         recentDispatches={formattedRecentDispatches}
+        customerSuggestions={autocompleteData.customers}
       />
     </AppShell>
   );

@@ -55,7 +55,7 @@ export function getRolePermissions(role: Role, status: UserStatus): PermissionCh
         canViewDashboard: true,
         canInwardToGodown: true,
         canTransferToOffice: true,
-        canDispatchToSite: false,
+        canDispatchToSite: true,
         canReturnFromSite: false,
         canManageCatalog: false,
         canManageUsers: false,

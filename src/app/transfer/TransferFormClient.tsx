@@ -5,7 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ItemCombobox, CatalogItemOption } from "@/components/inventory/ItemCombobox";
 import { QuantityStepper } from "@/components/inventory/QuantityStepper";
-import { transferStock, batchTransferStock } from "@/actions/inventory";
+import {
+  transferStock,
+  batchTransferStock,
+  dispatchToSite,
+  batchDispatchToSite,
+} from "@/actions/inventory";
 import {
   ArrowRightLeft,
   CheckCircle2,
@@ -19,11 +24,23 @@ import {
   Sparkles,
   ExternalLink,
   PackageCheck,
+  Truck,
+  MapPin,
+  User,
 } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { SessionUser } from "@/lib/types";
+
+interface WorkerOption {
+  id: string;
+  fullName: string;
+  role: string;
+}
 
 interface TransferFormClientProps {
   items: CatalogItemOption[];
+  workers?: WorkerOption[];
+  currentUser?: SessionUser;
 }
 
 interface StagedTransferItem {
@@ -31,17 +48,28 @@ interface StagedTransferItem {
   quantity: number;
 }
 
-export function TransferFormClient({ items: initialItems }: TransferFormClientProps) {
+export function TransferFormClient({
+  items: initialItems,
+  workers = [],
+  currentUser,
+}: TransferFormClientProps) {
   const router = useRouter();
   const [catalogItems, setCatalogItems] = useState<CatalogItemOption[]>(initialItems);
   const [activeTab, setActiveTab] = useState<"batch" | "single">("batch");
   const [stayOnPage, setStayOnPage] = useState<boolean>(true);
+
+  // Transfer Destination: Office Warehouse (Godown -> Office) or Direct Site Dispatch (Godown -> Site)
+  const [transferDestination, setTransferDestination] = useState<"OFFICE" | "SITE">("OFFICE");
 
   // Single Item Mode State
   const [selectedItem, setSelectedItem] = useState<CatalogItemOption | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
   const [docNo, setDocNo] = useState("");
   const [remarks, setRemarks] = useState("");
+  const [siteOrCustomer, setSiteOrCustomer] = useState("");
+  const [workerId, setWorkerId] = useState(
+    currentUser?.role === "WORKER" ? currentUser.id : workers[0]?.id || ""
+  );
 
   // Batch Multi-Item Mode State
   const [batchItems, setBatchItems] = useState<StagedTransferItem[]>([]);
@@ -49,6 +77,10 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
   const [pendingQty, setPendingQty] = useState<number>(1);
   const [batchDocNo, setBatchDocNo] = useState("");
   const [batchRemarks, setBatchRemarks] = useState("");
+  const [batchSiteOrCustomer, setBatchSiteOrCustomer] = useState("");
+  const [batchWorkerId, setBatchWorkerId] = useState(
+    currentUser?.role === "WORKER" ? currentUser.id : workers[0]?.id || ""
+  );
 
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
@@ -58,7 +90,10 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
   } | null>(null);
 
   // Helper to update local item stocks in memory
-  const updateLocalStock = (processed: Array<{ itemId: string; quantity: number }>) => {
+  const updateLocalStock = (
+    processed: Array<{ itemId: string; quantity: number }>,
+    destination: "OFFICE" | "SITE"
+  ) => {
     setCatalogItems((prev) =>
       prev.map((item) => {
         const found = processed.find((p) => p.itemId === item.id);
@@ -66,7 +101,7 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
           return {
             ...item,
             godownQty: Math.max(0, item.godownQty - found.quantity),
-            officeQty: item.officeQty + found.quantity,
+            officeQty: destination === "OFFICE" ? item.officeQty + found.quantity : item.officeQty,
           };
         }
         return item;
@@ -129,7 +164,7 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
     );
   };
 
-  // Single Item Transfer
+  // Single Item Submit
   const handleSingleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItem) {
@@ -148,58 +183,124 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
       return;
     }
 
+    if (transferDestination === "SITE" && !siteOrCustomer.trim()) {
+      setStatusMessage({
+        type: "error",
+        text: "Please provide the installation site or customer reference.",
+      });
+      return;
+    }
+
     setLoading(true);
     setStatusMessage(null);
 
-    const res = await transferStock({
-      itemId: selectedItem.id,
-      quantity,
-      docNo,
-      remarks,
-    });
-
-    setLoading(false);
-
-    if (res.success) {
-      updateLocalStock([{ itemId: selectedItem.id, quantity }]);
-      setStatusMessage({
-        type: "success",
-        text: res.message || `Transferred ${quantity} ${selectedItem.unit} of ${selectedItem.name} to Office.`,
-        processedList: [
-          {
-            name: selectedItem.name,
-            quantity,
-            unit: selectedItem.unit,
-            newGodown: res.newGodownBalance,
-            newOffice: res.newOfficeBalance,
-          },
-        ],
+    if (transferDestination === "SITE") {
+      // Direct Godown -> Site Dispatch
+      const res = await dispatchToSite({
+        itemId: selectedItem.id,
+        quantity,
+        siteOrCustomer: siteOrCustomer.trim(),
+        workerId: workerId || undefined,
+        docNo,
+        remarks,
+        fromLocation: "GODOWN",
       });
 
-      setSelectedItem(null);
-      setQuantity(1);
+      setLoading(false);
 
-      if (!stayOnPage) {
-        setTimeout(() => {
-          router.push("/dashboard");
+      if (res.success) {
+        updateLocalStock([{ itemId: selectedItem.id, quantity }], "SITE");
+        setStatusMessage({
+          type: "success",
+          text: `Directly dispatched ${quantity} ${selectedItem.unit} of ${selectedItem.name} from Godown to site "${siteOrCustomer}".`,
+          processedList: [
+            {
+              name: selectedItem.name,
+              quantity,
+              unit: selectedItem.unit,
+              newGodown: res.newBalance,
+            },
+          ],
+        });
+
+        setSelectedItem(null);
+        setQuantity(1);
+        setSiteOrCustomer("");
+
+        if (!stayOnPage) {
+          setTimeout(() => {
+            router.push("/dashboard");
+            router.refresh();
+          }, 700);
+        } else {
           router.refresh();
-        }, 700);
+        }
       } else {
-        router.refresh();
+        setStatusMessage({
+          type: "error",
+          text: res.error || "Failed to process site dispatch from Godown.",
+        });
       }
     } else {
-      setStatusMessage({
-        type: "error",
-        text: res.error || "Failed to process transfer.",
+      // Standard Godown -> Office Hub Transfer
+      const res = await transferStock({
+        itemId: selectedItem.id,
+        quantity,
+        docNo,
+        remarks,
       });
+
+      setLoading(false);
+
+      if (res.success) {
+        updateLocalStock([{ itemId: selectedItem.id, quantity }], "OFFICE");
+        setStatusMessage({
+          type: "success",
+          text: res.message || `Transferred ${quantity} ${selectedItem.unit} of ${selectedItem.name} to Office.`,
+          processedList: [
+            {
+              name: selectedItem.name,
+              quantity,
+              unit: selectedItem.unit,
+              newGodown: res.newGodownBalance,
+              newOffice: res.newOfficeBalance,
+            },
+          ],
+        });
+
+        setSelectedItem(null);
+        setQuantity(1);
+
+        if (!stayOnPage) {
+          setTimeout(() => {
+            router.push("/dashboard");
+            router.refresh();
+          }, 700);
+        } else {
+          router.refresh();
+        }
+      } else {
+        setStatusMessage({
+          type: "error",
+          text: res.error || "Failed to process transfer.",
+        });
+      }
     }
   };
 
-  // Batch Multi-Item Transfer
+  // Batch Multi-Item Submit
   const handleBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (batchItems.length === 0) {
       setStatusMessage({ type: "error", text: "Please add at least one item to the transfer list." });
+      return;
+    }
+
+    if (transferDestination === "SITE" && !batchSiteOrCustomer.trim()) {
+      setStatusMessage({
+        type: "error",
+        text: "Please provide the installation site or customer reference for this direct dispatch.",
+      });
       return;
     }
 
@@ -217,44 +318,92 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
     setLoading(true);
     setStatusMessage(null);
 
-    const payload = {
-      items: batchItems.map((b) => ({ itemId: b.item.id, quantity: b.quantity })),
-      docNo: batchDocNo.trim() || undefined,
-      remarks: batchRemarks.trim() || undefined,
-    };
+    if (transferDestination === "SITE") {
+      // Direct Godown -> Site Batch Dispatch
+      const payload = {
+        items: batchItems.map((b) => ({ itemId: b.item.id, quantity: b.quantity })),
+        siteOrCustomer: batchSiteOrCustomer.trim(),
+        workerId: batchWorkerId || undefined,
+        docNo: batchDocNo.trim() || undefined,
+        remarks: batchRemarks.trim() || undefined,
+        fromLocation: "GODOWN" as const,
+      };
 
-    const res = await batchTransferStock(payload);
-    setLoading(false);
+      const res = await batchDispatchToSite(payload);
+      setLoading(false);
 
-    if (res.success) {
-      updateLocalStock(payload.items);
-      setStatusMessage({
-        type: "success",
-        text: res.message || `Successfully transferred ${batchItems.length} items to Office hub.`,
-        processedList: batchItems.map((b) => ({
-          name: b.item.name,
-          quantity: b.quantity,
-          unit: b.item.unit,
-        })),
-      });
+      if (res.success) {
+        updateLocalStock(payload.items, "SITE");
+        setStatusMessage({
+          type: "success",
+          text: `Successfully dispatched ${batchItems.length} items directly from Godown to site "${batchSiteOrCustomer.trim()}".`,
+          processedList: batchItems.map((b) => ({
+            name: b.item.name,
+            quantity: b.quantity,
+            unit: b.item.unit,
+          })),
+        });
 
-      setBatchItems([]);
-      setPendingItem(null);
-      setPendingQty(1);
+        setBatchItems([]);
+        setPendingItem(null);
+        setPendingQty(1);
+        setBatchSiteOrCustomer("");
 
-      if (!stayOnPage) {
-        setTimeout(() => {
-          router.push("/dashboard");
+        if (!stayOnPage) {
+          setTimeout(() => {
+            router.push("/dashboard");
+            router.refresh();
+          }, 700);
+        } else {
           router.refresh();
-        }, 700);
+        }
       } else {
-        router.refresh();
+        setStatusMessage({
+          type: "error",
+          text: res.error || "Failed to process batch dispatch from Godown.",
+        });
       }
     } else {
-      setStatusMessage({
-        type: "error",
-        text: res.error || "Failed to process batch transfer.",
-      });
+      // Standard Godown -> Office Hub Batch Transfer
+      const payload = {
+        items: batchItems.map((b) => ({ itemId: b.item.id, quantity: b.quantity })),
+        docNo: batchDocNo.trim() || undefined,
+        remarks: batchRemarks.trim() || undefined,
+      };
+
+      const res = await batchTransferStock(payload);
+      setLoading(false);
+
+      if (res.success) {
+        updateLocalStock(payload.items, "OFFICE");
+        setStatusMessage({
+          type: "success",
+          text: res.message || `Successfully transferred ${batchItems.length} items to Office hub.`,
+          processedList: batchItems.map((b) => ({
+            name: b.item.name,
+            quantity: b.quantity,
+            unit: b.item.unit,
+          })),
+        });
+
+        setBatchItems([]);
+        setPendingItem(null);
+        setPendingQty(1);
+
+        if (!stayOnPage) {
+          setTimeout(() => {
+            router.push("/dashboard");
+            router.refresh();
+          }, 700);
+        } else {
+          router.refresh();
+        }
+      } else {
+        setStatusMessage({
+          type: "error",
+          text: res.error || "Failed to process batch transfer.",
+        });
+      }
     }
   };
 
@@ -268,20 +417,40 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
       <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-              <ArrowRightLeft className="w-6 h-6" />
+            <div
+              className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                transferDestination === "SITE"
+                  ? "bg-amber-500/10 text-amber-600"
+                  : "bg-blue-500/10 text-blue-600"
+              }`}
+            >
+              {transferDestination === "SITE" ? (
+                <Truck className="w-6 h-6" />
+              ) : (
+                <ArrowRightLeft className="w-6 h-6" />
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                  Movement 2
+                <span
+                  className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                    transferDestination === "SITE"
+                      ? "text-amber-700 bg-amber-50"
+                      : "text-blue-600 bg-blue-50"
+                  }`}
+                >
+                  {transferDestination === "SITE" ? "Direct Site Dispatch" : "Warehouse Transfer"}
                 </span>
                 <span className="text-xs font-semibold text-slate-400">
-                  Godown ➔ Office Hub
+                  {transferDestination === "SITE"
+                    ? "Godown ➔ Installation Site"
+                    : "Godown ➔ Office Hub"}
                 </span>
               </div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight mt-0.5">
-                Internal Warehouse Transfer
+                {transferDestination === "SITE"
+                  ? "Direct Godown to Site Dispatch"
+                  : "Internal Warehouse Transfer"}
               </h2>
             </div>
           </div>
@@ -296,10 +465,78 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
         </div>
 
         <p className="text-xs text-slate-500 mt-3 leading-relaxed">
-          Move stock atomically from primary Godown warehouse to Office hub for staging daily solar installation jobs. Transfer multiple materials at once without leaving this page.
+          {transferDestination === "SITE"
+            ? "Directly dispatch materials from the primary Godown warehouse straight to an installation site or customer without routing through the Office first."
+            : "Move stock atomically from primary Godown warehouse to Office hub for staging daily solar installation jobs."}
         </p>
 
-        {/* Mode Selector Tabs */}
+        {/* Transfer Destination Switcher (Godown -> Office OR Godown -> Site) */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-2">
+            Where do you want to transfer this stock from Godown?
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                setTransferDestination("OFFICE");
+                setStatusMessage(null);
+              }}
+              className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                transferDestination === "OFFICE"
+                  ? "border-blue-500 bg-blue-50/50 text-blue-900 ring-2 ring-blue-500/20 shadow-xs"
+                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  transferDestination === "OFFICE"
+                    ? "bg-blue-600 text-white"
+                    : "bg-blue-500/10 text-blue-600"
+                }`}
+              >
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-extrabold text-xs sm:text-sm">To Office Hub</div>
+                <div className="text-[11px] text-slate-500 font-medium truncate">
+                  Warehouse Transfer (Godown ➔ Office)
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setTransferDestination("SITE");
+                setStatusMessage(null);
+              }}
+              className={`p-3.5 rounded-2xl border text-left flex items-center gap-3 transition-all ${
+                transferDestination === "SITE"
+                  ? "border-amber-500 bg-amber-50/50 text-amber-900 ring-2 ring-amber-500/20 shadow-xs"
+                  : "border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700"
+              }`}
+            >
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  transferDestination === "SITE"
+                    ? "bg-amber-500 text-white"
+                    : "bg-amber-500/10 text-amber-600"
+                }`}
+              >
+                <Truck className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="font-extrabold text-xs sm:text-sm">Direct to Site / Customer</div>
+                <div className="text-[11px] text-slate-500 font-medium truncate">
+                  Direct Dispatch (Godown ➔ Site)
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        {/* Mode Selector Tabs (Batch vs Single) */}
         <div className="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="w-full sm:w-auto grid grid-cols-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/60 gap-1">
             <button
@@ -310,12 +547,14 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
               }}
               className={`flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition-all min-w-0 text-center ${
                 activeTab === "batch"
-                  ? "bg-white text-blue-700 shadow-xs"
+                  ? transferDestination === "SITE"
+                    ? "bg-white text-amber-700 shadow-xs"
+                    : "bg-white text-blue-700 shadow-xs"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
               <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 shrink-0" />
-              <span className="truncate">Batch Transfer</span>
+              <span className="truncate">Batch Entry</span>
               {batchItems.length > 0 && (
                 <span className="px-1.5 py-0.2 bg-blue-600 text-white rounded-full text-[10px] font-black shrink-0">
                   {batchItems.length}
@@ -373,7 +612,7 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
 
               {statusMessage.processedList && statusMessage.processedList.length > 0 && (
                 <div className="mt-2 text-xs space-y-1">
-                  <div className="font-semibold text-emerald-800">Transferred Materials:</div>
+                  <div className="font-semibold text-emerald-800">Moved Materials:</div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
                     {statusMessage.processedList.map((item, idx) => (
                       <div
@@ -416,17 +655,67 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
       {/* ================= MULTI-ITEM BATCH MODE ================= */}
       {activeTab === "batch" && (
         <form onSubmit={handleBatchSubmit} className="space-y-6">
-          {/* Section 1: Transfer Challan Details */}
+          {/* Section 1: Transfer Document & Destination Reference */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span>Step 1: Transfer Document Reference</span>
+              <FileText
+                className={`w-4 h-4 ${
+                  transferDestination === "SITE" ? "text-amber-600" : "text-blue-600"
+                }`}
+              />
+              <span>
+                Step 1:{" "}
+                {transferDestination === "SITE"
+                  ? "Site Dispatch Information"
+                  : "Transfer Document Reference"}
+              </span>
             </h3>
+
+            {/* If Direct to Site: Require Site / Customer Name and Technician */}
+            {transferDestination === "SITE" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Installation Site / Customer Name *</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={batchSiteOrCustomer}
+                    onChange={(e) => setBatchSiteOrCustomer(e.target.value)}
+                    placeholder="e.g. Green Energy Project - Phase 2"
+                    className="w-full px-3.5 py-3 rounded-xl border border-amber-300 bg-white text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1">
+                    <User className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Assigned Technician / Worker</span>
+                  </label>
+                  <select
+                    value={batchWorkerId}
+                    onChange={(e) => setBatchWorkerId(e.target.value)}
+                    className="w-full px-3.5 py-3 rounded-xl border border-amber-300 bg-white text-sm font-medium focus:outline-none focus:border-amber-500"
+                  >
+                    {workers.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.fullName} ({w.role.replace("_", " ")})
+                      </option>
+                    ))}
+                    {workers.length === 0 && (
+                      <option value="">Logged by Current User</option>
+                    )}
+                  </select>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Transfer Challan / Gate Pass No.
+                  Challan / Gate Pass / Doc No. (Optional)
                 </label>
                 <div className="relative">
                   <input
@@ -442,13 +731,13 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Transfer Reason / Notes (Optional)
+                  Remarks / Notes (Optional)
                 </label>
                 <input
                   type="text"
                   value={batchRemarks}
                   onChange={(e) => setBatchRemarks(e.target.value)}
-                  placeholder="e.g. Staging materials for weekly rooftop projects"
+                  placeholder="e.g. Direct dispatch from warehouse"
                   className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
               </div>
@@ -458,8 +747,12 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
           {/* Section 2: Add Line Items */}
           <div className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200/80 shadow-2xs space-y-4">
             <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
-              <PackageCheck className="w-4 h-4 text-blue-600" />
-              <span>Step 2: Select Items to Move</span>
+              <PackageCheck
+                className={`w-4 h-4 ${
+                  transferDestination === "SITE" ? "text-amber-600" : "text-blue-600"
+                }`}
+              />
+              <span>Step 2: Select Items to Move from Godown</span>
             </h3>
 
             {/* Item selector & quantity input */}
@@ -505,11 +798,17 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
                 <button
                   type="button"
                   onClick={handleAddPendingToBatch}
-                  disabled={!pendingItem || pendingQty <= 0 || (pendingItem && pendingQty > pendingItem.godownQty)}
-                  className="px-5 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-sm shadow-md shadow-blue-600/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 shrink-0 touch-target"
+                  disabled={
+                    !pendingItem || pendingQty <= 0 || (pendingItem && pendingQty > pendingItem.godownQty)
+                  }
+                  className={`px-5 py-3.5 rounded-2xl font-bold text-sm text-white shadow-md active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 shrink-0 touch-target ${
+                    transferDestination === "SITE"
+                      ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                      : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
+                  }`}
                 >
                   <Plus className="w-4 h-4" />
-                  <span>Add to Transfer List</span>
+                  <span>Add to Batch List</span>
                 </button>
               </div>
             </div>
@@ -518,7 +817,7 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
             {batchItems.length > 0 ? (
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-                  <span>Items Staged for Transfer ({batchItems.length})</span>
+                  <span>Items Staged for Movement ({batchItems.length})</span>
                   <span>Total Units: {formatNumber(totalBatchUnits)}</span>
                 </div>
 
@@ -537,9 +836,13 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
                             {entry.item.name}
                           </div>
                           <div className="text-xs text-slate-400 flex flex-wrap items-center gap-1.5 mt-0.5">
-                            <span>Godown: {formatNumber(entry.item.godownQty)} {entry.item.unit}</span>
+                            <span>Godown Available: {formatNumber(entry.item.godownQty)} {entry.item.unit}</span>
                             <span>➔</span>
-                            <span>Office: {formatNumber(entry.item.officeQty)} {entry.item.unit}</span>
+                            <span>
+                              {transferDestination === "SITE"
+                                ? `To Site: ${batchSiteOrCustomer || "Installation Site"}`
+                                : `To Office Hub`}
+                            </span>
                           </div>
                         </div>
                       </div>
@@ -605,33 +908,45 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
             ) : (
               <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
                 <Layers className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs font-bold text-slate-600">No items added to the transfer list yet</p>
+                <p className="text-xs font-bold text-slate-600">No items added to the batch list yet</p>
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Select a material above, set the transfer quantity, and click "Add to Transfer List".
+                  Select a material above, set the transfer quantity, and click "Add to Batch List".
                 </p>
               </div>
             )}
           </div>
 
-          {/* Confirm & Transfer Batch Button */}
+          {/* Confirm & Submit Batch Button */}
           <button
             type="submit"
             disabled={loading || batchItems.length === 0}
-            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-blue-600/20 disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className={`w-full py-3.5 sm:py-4 px-4 rounded-2xl active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md disabled:opacity-40 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target ${
+              transferDestination === "SITE"
+                ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
+            }`}
           >
             {loading ? (
-              <span>Transferring {batchItems.length} Items to Office...</span>
+              <span>Processing Batch Movement...</span>
             ) : batchItems.length === 0 ? (
               <>
                 <ArrowRightLeft className="w-5 h-5 shrink-0" />
-                <span>Add Items Above to Transfer to Office Hub</span>
+                <span>Add Items Above to Process Movement</span>
               </>
             ) : (
               <>
-                <ArrowRightLeft className="w-5 h-5 shrink-0" />
+                {transferDestination === "SITE" ? (
+                  <Truck className="w-5 h-5 shrink-0" />
+                ) : (
+                  <ArrowRightLeft className="w-5 h-5 shrink-0" />
+                )}
                 <span className="text-center">
-                  Confirm & Transfer {batchItems.length} Item{batchItems.length !== 1 ? "s" : ""} (
-                  {formatNumber(totalBatchUnits)} Units) to Office Hub
+                  Confirm & {transferDestination === "SITE" ? "Dispatch" : "Transfer"}{" "}
+                  {batchItems.length} Item{batchItems.length !== 1 ? "s" : ""} (
+                  {formatNumber(totalBatchUnits)} Units) to{" "}
+                  {transferDestination === "SITE"
+                    ? `Site "${batchSiteOrCustomer || "Installation Site"}"`
+                    : "Office Hub"}
                 </span>
               </>
             )}
@@ -645,6 +960,47 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
           onSubmit={handleSingleSubmit}
           className="bg-white p-5 sm:p-7 rounded-3xl border border-slate-200/80 shadow-2xs space-y-5"
         >
+          {/* If Direct to Site: Require Site / Customer Name and Technician */}
+          {transferDestination === "SITE" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80">
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Installation Site / Customer Name *</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={siteOrCustomer}
+                  onChange={(e) => setSiteOrCustomer(e.target.value)}
+                  placeholder="e.g. Green Energy Project - Sector 4"
+                  className="w-full px-3.5 py-3 rounded-xl border border-amber-300 bg-white text-sm font-medium focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-extrabold uppercase tracking-wider text-amber-900 mb-1.5 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Assigned Technician / Worker</span>
+                </label>
+                <select
+                  value={workerId}
+                  onChange={(e) => setWorkerId(e.target.value)}
+                  className="w-full px-3.5 py-3 rounded-xl border border-amber-300 bg-white text-sm font-medium focus:outline-none focus:border-amber-500"
+                >
+                  {workers.map((w) => (
+                    <option key={w.id} value={w.id}>
+                      {w.fullName} ({w.role.replace("_", " ")})
+                    </option>
+                  ))}
+                  {workers.length === 0 && (
+                    <option value="">Logged by Current User</option>
+                  )}
+                </select>
+              </div>
+            </div>
+          )}
+
           {/* Combobox */}
           <ItemCombobox
             items={catalogItems}
@@ -670,10 +1026,14 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
               <div className="bg-white p-3 rounded-xl border border-slate-200/60 shadow-2xs">
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-700">
                   <Building2 className="w-3.5 h-3.5" />
-                  <span>Office (Destination)</span>
+                  <span>
+                    {transferDestination === "SITE" ? "Site (Destination)" : "Office (Destination)"}
+                  </span>
                 </div>
-                <div className="text-lg font-black text-slate-900 mt-1">
-                  {formatNumber(selectedItem.officeQty)} {selectedItem.unit}
+                <div className="text-sm font-bold text-slate-900 mt-1 truncate">
+                  {transferDestination === "SITE"
+                    ? siteOrCustomer || "Direct to Site"
+                    : `${formatNumber(selectedItem.officeQty)} ${selectedItem.unit}`}
                 </div>
               </div>
             </div>
@@ -692,7 +1052,7 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
             {/* Transfer DC / Slip No */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Transfer Challan / Slip No.
+                Challan / Slip No. (Optional)
               </label>
               <input
                 type="text"
@@ -706,13 +1066,13 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
             {/* Remarks */}
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
-                Internal Transfer Notes
+                Internal Movement Notes
               </label>
               <input
                 type="text"
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                placeholder="e.g. Weekly staging for installation team"
+                placeholder="e.g. Direct dispatch from warehouse"
                 className="w-full px-3.5 py-3 rounded-xl border border-slate-200 bg-white text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
             </div>
@@ -726,16 +1086,26 @@ export function TransferFormClient({ items: initialItems }: TransferFormClientPr
               !selectedItem ||
               quantity <= 0 ||
               singleIsExceeded ||
-              singleAvailableGodown <= 0
+              singleAvailableGodown <= 0 ||
+              (transferDestination === "SITE" && !siteOrCustomer.trim())
             }
-            className="w-full py-3.5 sm:py-4 px-4 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md shadow-blue-600/20 disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target"
+            className={`w-full py-3.5 sm:py-4 px-4 rounded-2xl active:scale-[0.99] text-white font-bold text-sm sm:text-base shadow-md disabled:opacity-50 disabled:pointer-events-none transition-all flex items-center justify-center gap-2 touch-target ${
+              transferDestination === "SITE"
+                ? "bg-amber-600 hover:bg-amber-700 shadow-amber-600/20"
+                : "bg-blue-600 hover:bg-blue-700 shadow-blue-600/20"
+            }`}
           >
             {loading ? (
-              <span>Processing Transfer...</span>
+              <span>Processing Movement...</span>
+            ) : transferDestination === "SITE" ? (
+              <>
+                <Truck className="w-5 h-5 shrink-0" />
+                <span>Confirm Direct Dispatch to Site</span>
+              </>
             ) : (
               <>
                 <ArrowRightLeft className="w-5 h-5 shrink-0" />
-                <span>Confirm Transfer to Office</span>
+                <span>Confirm Transfer to Office Hub</span>
               </>
             )}
           </button>

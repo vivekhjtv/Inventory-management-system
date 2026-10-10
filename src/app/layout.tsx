@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Zaffine Solar | Stock & Inventory Management System",
+  title: "Jaffine Enterprise | Solar Stock & Inventory Management System",
   description:
     "Mobile-first solar stock tracking across Godown Warehouse, Office Hub staging, and Customer Installation sites.",
   icons: {

@@ -49,6 +49,7 @@ model StockBalance {
 
 model InventoryTransaction {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  batchId         String?
   transactionType String
   itemId          String   @db.ObjectId
   quantity        Float
@@ -59,6 +60,8 @@ model InventoryTransaction {
   workerId        String?  @db.ObjectId
 
   siteOrCustomer  String?
+  customerPhone   String?
+  customerAddress String?
   referenceDocNo  String?
   remarks         String?
   transactionDate DateTime @default(now())
